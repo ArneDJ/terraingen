@@ -70,39 +70,59 @@ struct mesh gen_patch_grid(const size_t sidelength, const float offset)
 	return mesh;
 }
 
-GLuint gen_triangle(void)
+GLuint gen_cube(void)
 {
-	const GLfloat vertices[] = {
-		-0.5, -0.5, 0.0, 
-		0.5, -0.5, 0.0,
-		0.0, 0.5, 0.0,
+	// 8 corners of a cube, side length 2
+	const GLfloat positions[] = {
+		-1.f, -1.f, -1.f, 
+		-1.f, -1.f, 1.f,
+		-1.f, 1.f, -1.f,
+		-1.f, 1.f, 1.f,
+		1.f, -1.f, -1.f,
+		1.f, -1.f, 1.f,
+		1.f, 1.f, -1.f,
+		1.f, 1.f, 1.f,
+	};
 
-		0.0, 0.0, 1.0,
-		0.0, 1.0, 0.0,
-		1.0, 0.0, 0.0,
+	const GLfloat colors[] = {
+		1.f, 1.f, 1.f,
+		1.f, 1.f, 0.f,
+		1.f, 0.f, 1.f,
+		1.f, 0.f, 0.f,
+		0.f, 1.f, 1.f,
+		0.f, 1.f, 0.f,
+		0.f, 0.f, 1.f,
+		0.5f, 0.5f, 0.5f
+	};
+
+
+	// indices for the triangle strips
+	const GLushort indices[] = {
+		0, 1, 2, 3, 6, 7, 4, 5,
+		0xFFFF,
+		2, 6, 0, 4, 1, 5, 3, 7
 	};
 
 	GLuint VAO;
+	GLuint EBO, VBO;
 
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
 
-	GLuint VBO;
+	glGenBuffers(1, &EBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
 
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(positions) + sizeof(colors), NULL, GL_STATIC_DRAW);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(positions), positions);
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof(positions), sizeof(colors), colors);
 
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(9*sizeof(float)));
-
-	glBindVertexArray(0);
-	glDisableVertexAttribArray(0);
-	glDisableVertexAttribArray(1);
-	glDeleteBuffers(1, &VBO);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(positions)));
 
 	return VAO;
 }
@@ -163,8 +183,8 @@ void run_terraingen(SDL_Window *window)
 	Shader shader = base_shader();
 	Shader terrain = terrain_shader();
 	Camera cam{glm::vec3(1.f, 1.f, 1.f)};
-	GLuint triangle = gen_triangle();
 	struct mesh ter = gen_patch_grid(32, 16.f);
+	GLuint cube = gen_cube();
 
 	SDL_Event event;
 	while (event.type != SDL_QUIT) {
@@ -177,7 +197,9 @@ void run_terraingen(SDL_Window *window)
 		terrain.uniform_mat4("view", view);
 		shader.uniform_mat4("view", view);
 
-		display(triangle);
+		glBindVertexArray(cube);
+		glPrimitiveRestartIndex(0xFFFF);
+		glDrawElements(GL_TRIANGLE_STRIP, 17, GL_UNSIGNED_SHORT, NULL);
 
 		terrain.bind();
 		glBindVertexArray(ter.VAO);
@@ -210,6 +232,7 @@ int main(int argc, char *argv[])
 
 	glClearColor(0.f, 0.f, 0.f, 1.f);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_PRIMITIVE_RESTART);
 
 	run_terraingen(window);
 
