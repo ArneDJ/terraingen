@@ -15,8 +15,8 @@
 #include "imp.h"
 #include "terrain.h"
 
-#define WINDOW_WIDTH 1280
-#define WINDOW_HEIGHT 960
+#define WINDOW_WIDTH 1920
+#define WINDOW_HEIGHT 1080
 #define FOV 90.f
 #define NEAR 0.1f
 #define FAR 400.f
@@ -155,6 +155,7 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 	glClearColor(0.f, 0.f, 0.f, 1.f);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);

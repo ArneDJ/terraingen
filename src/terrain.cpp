@@ -36,6 +36,25 @@ static GLuint bind_texture_rgb(const struct rawimage *image)
 
 	return texture;
 }
+
+Terrain::Terrain(size_t sidelen, float patchoffst, float amp) 
+{
+		sidelength = sidelen;
+		amplitude = amp;
+		patchoffset = patchoffst;
+		termesh =  gen_patch_grid(sidelen, patchoffst);
+
+}
+
+Terrain::~Terrain(void) 
+{
+	if (heightimage.data != nullptr) { delete [] heightimage.data; }
+	if (normalimage.data != nullptr) { delete [] normalimage.data; }
+	if (glIsTexture(heightmap) == GL_TRUE) { glDeleteTextures(1, &heightmap); }
+	if (glIsTexture(normalmap) == GL_TRUE) { glDeleteTextures(1, &normalmap); }
+	glDeleteBuffers(1, &termesh.VBO);
+	glDeleteVertexArrays(1, &termesh.VAO);
+};
 	
 void Terrain::genheightmap(size_t imageres, float freq)
 {
