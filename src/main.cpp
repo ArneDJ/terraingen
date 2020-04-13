@@ -77,8 +77,9 @@ void run_terraingen(SDL_Window *window)
 
 	Shader shader = base_shader();
 	Shader terrain = terrain_shader();
-	Terrain terra { 32, 16.f, 32.f };
-	terra.genheightmap(512, 0.01);
+	Terrain terra { 32, 16.f, 64.f };
+	terra.genheightmap(1024, 0.005);
+	terra.gennormalmap();
 	Camera cam { glm::vec3(1.f, 1.f, 1.f) };
 	struct mesh cube = gen_mapcube();
 

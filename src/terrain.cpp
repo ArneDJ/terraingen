@@ -20,14 +20,42 @@ static GLuint bind_texture_red(unsigned char *image, size_t sidelength)
 
 	return texture;
 }
+
+static GLuint bind_texture_rgb(const struct rawimage *image)
+{
+	GLuint texture;
+
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB8, image->width, image->height);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, image->width, image->height, GL_RGB, GL_UNSIGNED_BYTE, image->data);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	return texture;
+}
 	
 void Terrain::genheightmap(size_t imageres, float freq)
 {
-	heightimage = new unsigned char[imageres*imageres];
+	struct rawimage image {
+		.data = new unsigned char[imageres*imageres],
+		.nchannels = 1,
+		.width = imageres,
+		.height = imageres
+	};
 
-	perlin_image(heightimage, imageres);
+	perlin_image(image.data, imageres, freq);
 
-	heightmap = bind_texture_red(heightimage ,imageres);
+	heightmap = bind_texture_red(image.data, imageres);
+	heightimage = image;
+}
+
+void Terrain::gennormalmap(void)
+{
+	normalimage = gen_normalmap(&heightimage);
+	normalmap = bind_texture_rgb(&normalimage);
 }
 
 void Terrain::display(void)
@@ -35,6 +63,8 @@ void Terrain::display(void)
 	glBindVertexArray(termesh.VAO);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, heightmap);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, normalmap);
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glPatchParameteri(GL_PATCH_VERTICES, 4);
 	glDrawArrays(GL_PATCHES, 0, termesh.ecount);

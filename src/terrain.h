@@ -14,11 +14,12 @@ public:
 	};
 	~Terrain(void) 
 	{
-		if (heightimage != nullptr) { delete [] heightimage; }
-		if (normalimage != nullptr) { delete [] normalimage; }
+		if (heightimage.data != nullptr) { delete [] heightimage.data; }
+		if (normalimage.data != nullptr) { delete [] normalimage.data; }
 	};
 
 	void genheightmap(size_t imageres, float freq);
+	void gennormalmap(void);
 	void display(void);
 
 private:
@@ -26,7 +27,7 @@ private:
 	float patchoffset;
 	GLuint heightmap;
 	GLuint normalmap;
-	unsigned char *heightimage = nullptr;
-	unsigned char *normalimage = nullptr;
+	struct rawimage heightimage;
+	struct rawimage normalimage;
 	struct mesh termesh;
 };
