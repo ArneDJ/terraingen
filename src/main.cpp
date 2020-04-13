@@ -64,6 +64,25 @@ Shader terrain_shader(void)
 	return shader;
 }
 
+Shader skybox_shader(void)
+{
+	struct shaderinfo pipeline[] = {
+		{GL_VERTEX_SHADER, "shaders/skyboxv.glsl"},
+		{GL_FRAGMENT_SHADER, "shaders/skyboxf.glsl"},
+		{GL_NONE, NULL}
+	};
+
+	Shader shader(pipeline);
+
+	shader.bind();
+
+	const float aspect = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
+	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR, FAR);
+	shader.uniform_mat4("project", project);
+
+	return shader;
+}
+
 void delete_mesh(const struct mesh *m)
 {
 	glDeleteBuffers(1, &m->EBO);
@@ -77,6 +96,7 @@ void run_terraingen(SDL_Window *window)
 
 	Shader shader = base_shader();
 	Shader terrain = terrain_shader();
+	Shader skybox = skybox_shader();
 	Terrain terra { 32, 16.f, 64.f };
 	terra.genheightmap(1024, 0.005);
 	terra.gennormalmap();
@@ -93,13 +113,23 @@ void run_terraingen(SDL_Window *window)
 		glm::mat4 view = cam.view();
 		terrain.uniform_mat4("view", view);
 		shader.uniform_mat4("view", view);
+		skybox.uniform_mat4("view", view);
 
+		shader.bind();
 		glBindVertexArray(cube.VAO);
 		glDrawElements(cube.mode, cube.ecount, GL_UNSIGNED_SHORT, NULL);
 
 		terrain.bind();
 		terrain.uniform_float("amplitude", terra.amplitude);
 		terra.display();
+
+		skybox.bind();
+		glDepthFunc(GL_LEQUAL);
+		//glActiveTexture(GL_TEXTURE0);
+		//glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
+		glBindVertexArray(cube.VAO);
+		glDrawElements(cube.mode, cube.ecount, GL_UNSIGNED_SHORT, NULL);
+		glDepthFunc(GL_LESS);
 
 		SDL_GL_SwapWindow(window);
 	}

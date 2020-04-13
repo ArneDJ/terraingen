@@ -2,7 +2,6 @@ struct mesh {
 	GLuint VAO, VBO, EBO;
 	GLenum mode; // rendering mode
 	GLsizei ecount; // element count
-	GLenum etype; // element type for indices
 	bool indexed;
 };
 
