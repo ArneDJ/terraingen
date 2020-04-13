@@ -2,6 +2,7 @@
 
 layout(binding = 0) uniform sampler2D heightmap;
 uniform mat4 view, project;
+uniform float amplitude;
 
 layout(quads, fractional_even_spacing, ccw) in;
 
@@ -17,7 +18,6 @@ void main(void)
 	vec4 pos = mix(p1, p2, gl_TessCoord.x);
 
 	const float scale = 0.001923125;
-	const float amplitude = 64.0;
 	float height = texture(heightmap, scale*pos.xz).r;
 	pos.y = amplitude * height;
 
