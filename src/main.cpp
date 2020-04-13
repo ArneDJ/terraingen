@@ -11,6 +11,7 @@
 
 #include "shader.h"
 #include "camera.h"
+#include "imp.h"
 
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 960
@@ -31,13 +32,15 @@ struct mesh {
 // make a square patch grid along the x and z axis, needs a tessellation shader to render
 struct mesh gen_patch_grid(const size_t sidelength, const float offset)
 {
-	struct mesh mesh = {0};
-	mesh.mode = GL_PATCHES;
-	mesh.ecount = 4 * sidelength * sidelength;
-	mesh.indexed = false;
+	struct mesh patch = {
+		.VAO = 0, .VBO = 0, .EBO = 0,
+		.mode = GL_PATCHES,
+		.ecount = GLsizei(4 * sidelength * sidelength),
+		.indexed = false
+	};
 
 	std::vector<glm::vec3> vertices;
-	vertices.reserve(mesh.ecount);
+	vertices.reserve(patch.ecount);
 
 	glm::vec3 origin = glm::vec3(0.f, 0.f, 0.f);
 	for (int x = 0; x < sidelength; x++) {
@@ -52,11 +55,11 @@ struct mesh gen_patch_grid(const size_t sidelength, const float offset)
 		origin.z += offset;
 	}
 
-	glGenVertexArrays(1, &mesh.VAO);
-	glBindVertexArray(mesh.VAO);
+	glGenVertexArrays(1, &patch.VAO);
+	glBindVertexArray(patch.VAO);
 
-	glGenBuffers(1, &mesh.VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, mesh.VBO);
+	glGenBuffers(1, &patch.VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, patch.VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*vertices.size(), &vertices[0], GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(0);
@@ -67,21 +70,27 @@ struct mesh gen_patch_grid(const size_t sidelength, const float offset)
 	glBindVertexArray(0);
 	glDisableVertexAttribArray(0);
 
-	return mesh;
+	return patch;
 }
 
-GLuint gen_cube(void)
+struct mesh gen_mapcube(void)
 {
+	struct mesh cube = {
+		.VAO = 0, .VBO = 0, .EBO = 0,
+		.mode = GL_TRIANGLE_STRIP,
+		.ecount = 17,
+		.indexed = false
+	};
 	// 8 corners of a cube, side length 2
 	const GLfloat positions[] = {
-		-1.f, -1.f, -1.f, 
-		-1.f, -1.f, 1.f,
-		-1.f, 1.f, -1.f,
-		-1.f, 1.f, 1.f,
-		1.f, -1.f, -1.f,
-		1.f, -1.f, 1.f,
-		1.f, 1.f, -1.f,
 		1.f, 1.f, 1.f,
+		1.f, 1.f, -1.f,
+		1.f, -1.f, 1.f,
+		1.f, -1.f, -1.f,
+		-1.f, 1.f, 1.f,
+		-1.f, 1.f, -1.f,
+		-1.f, -1.f, 1.f,
+		-1.f, -1.f, -1.f, 
 	};
 
 	const GLfloat colors[] = {
@@ -103,18 +112,15 @@ GLuint gen_cube(void)
 		2, 6, 0, 4, 1, 5, 3, 7
 	};
 
-	GLuint VAO;
-	GLuint EBO, VBO;
+	glGenVertexArrays(1, &cube.VAO);
+	glBindVertexArray(cube.VAO);
 
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
-
-	glGenBuffers(1, &EBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glGenBuffers(1, &cube.EBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube.EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
 
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glGenBuffers(1, &cube.VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, cube.VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(positions) + sizeof(colors), NULL, GL_STATIC_DRAW);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(positions), positions);
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof(positions), sizeof(colors), colors);
@@ -124,7 +130,7 @@ GLuint gen_cube(void)
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(positions)));
 
-	return VAO;
+	return cube;
 }
 
 Shader base_shader(void)
@@ -170,10 +176,33 @@ Shader terrain_shader(void)
 	return shader;
 }
 
-void display(GLuint VAO)
+GLuint perlin_texture(void)
 {
-	glBindVertexArray(VAO);
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+	size_t sidelength = 512;
+	unsigned char *image = new unsigned char[sidelength*sidelength];
+
+	perlin_image(image, sidelength);
+
+	GLuint texture;
+
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexStorage2D(GL_TEXTURE_2D, 1, GL_R8, sidelength, sidelength);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, sidelength, sidelength, GL_RED, GL_UNSIGNED_BYTE, image);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+	delete [] image;
+
+	return texture;
+}
+
+void delete_mesh(const struct mesh *m)
+{
+	glDeleteBuffers(1, &m->EBO);
+	glDeleteBuffers(1, &m->VBO);
+	glDeleteVertexArrays(1, &m->VAO);
 }
 
 void run_terraingen(SDL_Window *window)
@@ -182,9 +211,10 @@ void run_terraingen(SDL_Window *window)
 
 	Shader shader = base_shader();
 	Shader terrain = terrain_shader();
+	GLuint heightmap = perlin_texture();
 	Camera cam{glm::vec3(1.f, 1.f, 1.f)};
 	struct mesh ter = gen_patch_grid(32, 16.f);
-	GLuint cube = gen_cube();
+	struct mesh cube = gen_mapcube();
 
 	SDL_Event event;
 	while (event.type != SDL_QUIT) {
@@ -197,19 +227,23 @@ void run_terraingen(SDL_Window *window)
 		terrain.uniform_mat4("view", view);
 		shader.uniform_mat4("view", view);
 
-		glBindVertexArray(cube);
-		glPrimitiveRestartIndex(0xFFFF);
-		glDrawElements(GL_TRIANGLE_STRIP, 17, GL_UNSIGNED_SHORT, NULL);
+		glBindVertexArray(cube.VAO);
+		glDrawElements(cube.mode, cube.ecount, GL_UNSIGNED_SHORT, NULL);
 
 		terrain.bind();
 		glBindVertexArray(ter.VAO);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, heightmap);
+		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		glPatchParameteri(GL_PATCH_VERTICES, 4);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		glDrawArrays(GL_PATCHES, 0, ter.ecount);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 		SDL_GL_SwapWindow(window);
 	}
+
+	delete_mesh(&ter);
+	delete_mesh(&cube);
 }
 
 int main(int argc, char *argv[])
@@ -231,8 +265,11 @@ int main(int argc, char *argv[])
 	}
 
 	glClearColor(0.f, 0.f, 0.f, 1.f);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_PRIMITIVE_RESTART);
+	glPrimitiveRestartIndex(0xFFFF);
 
 	run_terraingen(window);
 

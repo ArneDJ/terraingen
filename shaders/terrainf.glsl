@@ -1,5 +1,7 @@
 #version 430 core
 
+layout(binding = 0) uniform sampler2D heightmap;
+
 out vec4 fcolor;
 
 in TESSEVAL {
@@ -9,5 +11,6 @@ in TESSEVAL {
 
 void main(void)
 {
-	fcolor = vec4(1.0, 1.0, 1.0, 1.0);
+	vec4 color = texture(heightmap, fragment.texcoord*0.001953125);
+	fcolor = vec4(color.r, color.r, color.r, 1.0);
 }

@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-lm `sdl2-config --cflags --libs` -lGL -lGLEW
+CFLAGS=-lm `sdl2-config --cflags --libs` -lGL -lGLEW -lnoise
 OUTPUT=ter.out
 
 SRC = $(wildcard src/*.cpp)
