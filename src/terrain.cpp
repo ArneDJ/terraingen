@@ -50,8 +50,10 @@ Terrain::~Terrain(void)
 {
 	if (heightimage.data != nullptr) { delete [] heightimage.data; }
 	if (normalimage.data != nullptr) { delete [] normalimage.data; }
+	if (occlusimage.data != nullptr) { delete [] occlusimage.data; }
 	if (glIsTexture(heightmap) == GL_TRUE) { glDeleteTextures(1, &heightmap); }
 	if (glIsTexture(normalmap) == GL_TRUE) { glDeleteTextures(1, &normalmap); }
+	if (glIsTexture(occlusmap) == GL_TRUE) { glDeleteTextures(1, &occlusmap); }
 	glDeleteBuffers(1, &termesh.VBO);
 	glDeleteVertexArrays(1, &termesh.VAO);
 };
@@ -78,6 +80,12 @@ void Terrain::gennormalmap(void)
 	normalmap = bind_texture_rgb(&normalimage);
 }
 
+void Terrain::genocclusmap(void)
+{
+	occlusimage = gen_occlusmap(&heightimage);
+	occlusmap = bind_texture_red(occlusimage.data, occlusimage.width);
+}
+
 void Terrain::display(void)
 {
 	glBindVertexArray(termesh.VAO);
@@ -85,6 +93,8 @@ void Terrain::display(void)
 	glBindTexture(GL_TEXTURE_2D, heightmap);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, normalmap);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, occlusmap);
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glPatchParameteri(GL_PATCH_VERTICES, 4);
 	glDrawArrays(GL_PATCHES, 0, termesh.ecount);

@@ -3,6 +3,7 @@
 #include <glm/vec3.hpp>
 
 #include "external/fastnoise/FastNoise.h"
+#include "external/heman/heman.h"
 #include "imp.h"
 
 #define RED_CHANNEL 1
@@ -70,6 +71,26 @@ struct rawimage gen_normalmap(const struct rawimage *heightmap)
 	return normalmap;
 }
 
+struct rawimage gen_occlusmap(const struct rawimage *heightmap)
+{
+	struct rawimage occlusmap {
+		.data = new unsigned char[heightmap->width * heightmap->height],
+		.nchannels = RED_CHANNEL,
+		.width = heightmap->width,
+		.height = heightmap->height
+	};
+
+	heman_image *retval = heman_import_u8(heightmap->width, heightmap->height, heightmap->nchannels, heightmap->data, 0, 1);;
+
+	heman_image *occ = heman_lighting_compute_occlusion(retval);
+	heman_export_u8(occ, 0, 1, occlusmap.data);
+
+	heman_image_destroy(retval);
+	heman_image_destroy(occ);
+
+	return occlusmap;
+}
+
 void perlin_image(unsigned char *image, size_t sidelength, float freq)
 {
 	FastNoise myNoise; // Create a FastNoise object
@@ -107,18 +128,23 @@ void terrain_image(unsigned char *image, size_t sidelength, float freq)
 	noise.SetNoiseType(FastNoise::Cellular); // Set the desired noise type
 	noise.SetCellularDistanceFunction(FastNoise::Natural);
 	noise.SetFrequency(freq);
-	noise.SetCellularReturnType(FastNoise::Distance);
-	noise.SetGradientPerturbAmp(25.f);
+	noise.SetCellularReturnType(FastNoise::Distance2);
+	noise.SetGradientPerturbAmp(50.f);
+
+	FastNoise myNoise; // Create a FastNoise object
+	myNoise.SetNoiseType(FastNoise::SimplexFractal); // Set the desired noise type
+	myNoise.SetFractalType(FastNoise::FBM);
+	myNoise.SetFrequency(freq*0.7);
+	myNoise.SetFractalOctaves(6);
+	myNoise.SetFractalLacunarity(1.7f);
 
 	float max = 1.f;
 	float min = 0.f;
 	for (int i = 0; i < sidelength; i++) {
 		for (int j = 0; j < sidelength; j++) {
-			float x = i;
-			float y = j;
+			float x = i; float y = j;
 			noise.GradientPerturb(x, y);
-			//std::cout << x << " and " << y << std::endl;
-			float val = noise.GetNoise(x, y);
+			float val = sqrt(noise.GetNoise(x, y));
 			if (val > max) { max = val; }
 			if (val < min) { min = val; }
 		}
@@ -127,13 +153,18 @@ void terrain_image(unsigned char *image, size_t sidelength, float freq)
 	unsigned int index = 0;
 	for (int i = 0; i < sidelength; i++) {
 		for (int j = 0; j < sidelength; j++) {
-			float x = i;
-			float y = j;
+			float x = i; float y = j;
 			noise.GradientPerturb(x, y);
-			float val = noise.GetNoise(x, y);
+			float val = sqrt(noise.GetNoise(x, y));
 			//val = (val + 1.f) / 2.f;
 			val = val * (1.f / max);
-			val = glm::clamp(float(val), 0.f, 1.f); 
+
+			float fract = myNoise.GetNoise(i, j);
+			fract = (fract + 1.f) / 2.f;
+			fract = glm::clamp(float(fract), 0.f, 1.f); 
+
+			val = glm::clamp(float(val), 0.f, 1.f);
+			val = 0.5 * (val + fract);
 			image[index++] = val * 255.f;
 		}
 	}

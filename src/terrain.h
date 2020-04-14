@@ -6,6 +6,7 @@ public:
 	~Terrain(void);
 	void genheightmap(size_t imageres, float freq);
 	void gennormalmap(void);
+	void genocclusmap(void);
 	void display(void);
 private:
 	size_t sidelength;
@@ -13,7 +14,9 @@ private:
 private:
 	GLuint heightmap;
 	GLuint normalmap;
+	GLuint occlusmap;
 	struct rawimage heightimage;
 	struct rawimage normalimage;
+	struct rawimage occlusimage;
 	struct mesh termesh;
 };
