@@ -65,7 +65,8 @@ void Terrain::genheightmap(size_t imageres, float freq)
 		.height = imageres
 	};
 
-	perlin_image(image.data, imageres, freq);
+	//perlin_image(image.data, imageres, freq);
+	terrain_image(image.data, imageres, freq);
 
 	heightmap = bind_texture_red(image.data, imageres);
 	heightimage = image;

@@ -1,8 +1,8 @@
 #include <iostream>
-#include <noise/noise.h>
 #include <glm/glm.hpp>
 #include <glm/vec3.hpp>
 
+#include "external/fastnoise/FastNoise.h"
 #include "imp.h"
 
 #define RED_CHANNEL 1
@@ -72,22 +72,67 @@ struct rawimage gen_normalmap(const struct rawimage *heightmap)
 
 void perlin_image(unsigned char *image, size_t sidelength, float freq)
 {
-	using namespace noise;
-
-	module::Perlin perlin;
-	perlin.SetFrequency(freq);
-	perlin.SetOctaveCount(6); // default is 6
-	perlin.SetLacunarity(2.0); // default is 2
-	perlin.SetSeed(0); // default is 0
+	FastNoise myNoise; // Create a FastNoise object
+	myNoise.SetNoiseType(FastNoise::ValueFractal); // Set the desired noise type
+	myNoise.SetFractalType(FastNoise::Billow);
+	myNoise.SetFractalOctaves(4);
+	myNoise.SetFractalLacunarity(2.f);
 
 	float max = 1.f;
 	float min = 0.f;
+	for (int i = 0; i < sidelength; i++) {
+		for (int j = 0; j < sidelength; j++) {
+			float val = myNoise.GetNoise(i, j);
+			if (val > max) { max = val; }
+			if (val < min) { min = val; }
+		}
+	}
+
 	unsigned int index = 0;
 	for (int i = 0; i < sidelength; i++) {
 		for (int j = 0; j < sidelength; j++) {
-			double val = (perlin.GetValue(i, j, 1.f) + 1.f) * 0.5f;
+			float val = myNoise.GetNoise(i, j);
+			val = (val + 1.f) / 2.f;
+			val = glm::clamp(float(val), 0.f, 1.f); 
+			image[index++] = val * 255.f;
+		}
+	}
+	std::cout << "max value " << max << std::endl;
+	std::cout << "min value " << min << std::endl;
+}
+
+void terrain_image(unsigned char *image, size_t sidelength, float freq)
+{
+	FastNoise noise; // Create a FastNoise object
+	noise.SetNoiseType(FastNoise::Cellular); // Set the desired noise type
+	noise.SetCellularDistanceFunction(FastNoise::Natural);
+	noise.SetFrequency(freq);
+	noise.SetCellularReturnType(FastNoise::Distance);
+	noise.SetGradientPerturbAmp(25.f);
+
+	float max = 1.f;
+	float min = 0.f;
+	for (int i = 0; i < sidelength; i++) {
+		for (int j = 0; j < sidelength; j++) {
+			float x = i;
+			float y = j;
+			noise.GradientPerturb(x, y);
+			//std::cout << x << " and " << y << std::endl;
+			float val = noise.GetNoise(x, y);
 			if (val > max) { max = val; }
 			if (val < min) { min = val; }
+		}
+	}
+
+	unsigned int index = 0;
+	for (int i = 0; i < sidelength; i++) {
+		for (int j = 0; j < sidelength; j++) {
+			float x = i;
+			float y = j;
+			noise.GradientPerturb(x, y);
+			float val = noise.GetNoise(x, y);
+			//val = (val + 1.f) / 2.f;
+			val = val * (1.f / max);
 			val = glm::clamp(float(val), 0.f, 1.f); 
 			image[index++] = val * 255.f;
 		}

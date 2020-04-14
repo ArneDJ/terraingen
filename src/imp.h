@@ -6,4 +6,5 @@ struct rawimage {
 };
 
 void perlin_image(unsigned char *image, size_t sidelength, float freq);
+void terrain_image(unsigned char *image, size_t sidelength, float freq);
 struct rawimage gen_normalmap(const struct rawimage *heightmap);

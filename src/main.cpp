@@ -13,6 +13,7 @@
 #include "camera.h"
 #include "mesh.h"
 #include "imp.h"
+#include "dds.h"
 #include "terrain.h"
 
 #define WINDOW_WIDTH 1920
@@ -98,9 +99,12 @@ void run_terraingen(SDL_Window *window)
 	Shader terrain = terrain_shader();
 	Shader skybox = skybox_shader();
 	Terrain terra { 32, 16.f, 64.f };
-	terra.genheightmap(1024, 0.005);
+	terra.genheightmap(1024, 0.01);
 	terra.gennormalmap();
-	Camera cam { glm::vec3(1.f, 1.f, 1.f) };
+	GLuint grassmap = load_DDS_texture("media/textures/grass.dds");
+	GLuint stonemap = load_DDS_texture("media/textures/stone.dds");
+	GLuint snowmap = load_DDS_texture("media/textures/snow.dds");
+	Camera cam { glm::vec3(256.f, 64.f, 256.f) };
 	struct mesh cube = gen_mapcube();
 
 	SDL_Event event;
@@ -121,6 +125,13 @@ void run_terraingen(SDL_Window *window)
 
 		terrain.bind();
 		terrain.uniform_float("amplitude", terra.amplitude);
+		terrain.uniform_float("mapscale", 0.001953125f);
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, grassmap);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, stonemap);
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D, snowmap);
 		terra.display();
 
 		skybox.bind();
