@@ -12,7 +12,8 @@
 static inline float sample_height(int x, int y, const struct rawimage *image)
 {
 	if (x < 0 || y < 0 || x > (image->width-1) || y > (image->height-1)) {
-		return 0.f; }
+		return 0.f; 
+	}
 
 	int index = y * image->width * image->nchannels + x * image->nchannels;
 
@@ -89,37 +90,6 @@ struct rawimage gen_occlusmap(const struct rawimage *heightmap)
 	heman_image_destroy(occ);
 
 	return occlusmap;
-}
-
-void perlin_image(unsigned char *image, size_t sidelength, float freq)
-{
-	FastNoise myNoise; // Create a FastNoise object
-	myNoise.SetNoiseType(FastNoise::ValueFractal); // Set the desired noise type
-	myNoise.SetFractalType(FastNoise::Billow);
-	myNoise.SetFractalOctaves(4);
-	myNoise.SetFractalLacunarity(2.f);
-
-	float max = 1.f;
-	float min = 0.f;
-	for (int i = 0; i < sidelength; i++) {
-		for (int j = 0; j < sidelength; j++) {
-			float val = myNoise.GetNoise(i, j);
-			if (val > max) { max = val; }
-			if (val < min) { min = val; }
-		}
-	}
-
-	unsigned int index = 0;
-	for (int i = 0; i < sidelength; i++) {
-		for (int j = 0; j < sidelength; j++) {
-			float val = myNoise.GetNoise(i, j);
-			val = (val + 1.f) / 2.f;
-			val = glm::clamp(float(val), 0.f, 1.f); 
-			image[index++] = val * 255.f;
-		}
-	}
-	std::cout << "max value " << max << std::endl;
-	std::cout << "min value " << min << std::endl;
 }
 
 void terrain_image(unsigned char *image, size_t sidelength, float freq)

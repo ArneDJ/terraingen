@@ -8,6 +8,7 @@ layout(binding = 4) uniform sampler2D stonemap;
 layout(binding = 5) uniform sampler2D snowmap;
 
 uniform float mapscale;
+uniform vec3 camerapos;
 
 out vec4 fcolor;
 
@@ -22,11 +23,24 @@ struct material {
 	vec3 snow;
 };
 
+vec3 fog(vec3 c, float dist, float height)
+{
+	vec3 fog_color = {0.46, 0.7, 0.99};
+	float de = 0.065 * smoothstep(0.0, 3.3, 1.0 - height);
+	float di = 0.065 * smoothstep(0.0, 5.5, 1.0 - height);
+	float extinction = exp(-dist * de);
+	float inscattering = exp(-dist * di);
+
+	return c * extinction + fog_color * (1.0 - inscattering);
+}
+
 void main(void)
 {
-	const vec3 lightdirection = vec3(0.2, 0.5, 0.5);
-	const vec3 ambient = vec3(0.7, 0.7, 0.7);
-	const vec3 lightcolor = vec3(1.0, 0.9, 0.8);
+	const vec3 lightdirection = vec3(0.5, 0.5, 0.5);
+	const vec3 ambient = vec3(0.5, 0.5, 0.5);
+	const vec3 lightcolor = vec3(1.0, 1.0, 1.0);
+
+	const vec3 viewspace = vec3(distance(fragment.position.x, camerapos.x), distance(fragment.position.y, camerapos.y), distance(fragment.position.z, camerapos.z));
 
 	vec2 uv = fragment.texcoord * mapscale;
 	float height = texture(heightmap, uv).r;
@@ -53,8 +67,10 @@ void main(void)
 	float occlusion = texture(occlusmap, uv).r;
 	color *= occlusion;
 
-	fcolor = vec4(color, 1.0);
-	float gamma = 2.2;
+	color = fog(color, length(viewspace), height);
+
+	float gamma = 1.6;
 	color.rgb = pow(color.rgb, vec3(1.0/gamma));
+	fcolor = vec4(color, 1.0);
 	//fcolor = vec4(normal, 1.0);
 }

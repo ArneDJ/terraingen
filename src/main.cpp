@@ -9,6 +9,9 @@
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "external/stbimage/stb_image.h"
+
 #include "shader.h"
 #include "camera.h"
 #include "mesh.h"
@@ -20,7 +23,38 @@
 #define WINDOW_HEIGHT 1080
 #define FOV 90.f
 #define NEAR 0.1f
-#define FAR 400.f
+#define FAR 800.f
+
+GLuint load_TGA_cubemap(const char *fpath[6])
+{
+	GLuint texture;
+
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
+
+	for (int face = 0; face < 6; face++) {
+		GLenum target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
+		int width, height, nchannels;
+		unsigned char *image = stbi_load(fpath[face], &width, &height, &nchannels, 0);
+		if (image) {
+			glTexImage2D(target, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+			stbi_image_free(image);
+		} else {
+			std::cerr << "cubemap error: failed to load " << fpath[face] << std::endl;
+			return 0;
+		}
+	}
+
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
+	return texture;
+}
 
 Shader base_shader(void)
 {
@@ -95,6 +129,16 @@ void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 
+	const char *CUBEMAP_TEXTURES[6] = {
+	"media/textures/skybox/dust_ft.tga",
+	"media/textures/skybox/dust_bk.tga",
+	"media/textures/skybox/dust_up.tga",
+	"media/textures/skybox/dust_dn.tga",
+	"media/textures/skybox/dust_rt.tga",
+	"media/textures/skybox/dust_lf.tga",
+	};
+	GLuint cubemap = load_TGA_cubemap(CUBEMAP_TEXTURES);
+
 	Shader shader = base_shader();
 	Shader terrain = terrain_shader();
 	Shader skybox = skybox_shader();
@@ -102,10 +146,7 @@ void run_terraingen(SDL_Window *window)
 	terra.genheightmap(1024, 0.01);
 	terra.gennormalmap();
 	terra.genocclusmap();
-	GLuint grassmap = load_DDS_texture("media/textures/grass.dds");
-	GLuint stonemap = load_DDS_texture("media/textures/stone.dds");
-	GLuint snowmap = load_DDS_texture("media/textures/snow.dds");
-	Camera cam { glm::vec3(512.f, 256.f, 512.f) };
+	Camera cam { glm::vec3(512.f, 128.f, 512.f) };
 	struct mesh cube = gen_mapcube();
 
 	SDL_Event event;
@@ -127,18 +168,13 @@ void run_terraingen(SDL_Window *window)
 		terrain.bind();
 		terrain.uniform_float("amplitude", terra.amplitude);
 		terrain.uniform_float("mapscale", 1.f / 2048.f);
-		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, grassmap);
-		glActiveTexture(GL_TEXTURE4);
-		glBindTexture(GL_TEXTURE_2D, stonemap);
-		glActiveTexture(GL_TEXTURE5);
-		glBindTexture(GL_TEXTURE_2D, snowmap);
+		terrain.uniform_vec3("camerapos", cam.eye);
 		terra.display();
 
 		skybox.bind();
 		glDepthFunc(GL_LEQUAL);
-		//glActiveTexture(GL_TEXTURE0);
-		//glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
 		glBindVertexArray(cube.VAO);
 		glDrawElements(cube.mode, cube.ecount, GL_UNSIGNED_SHORT, NULL);
 		glDepthFunc(GL_LESS);

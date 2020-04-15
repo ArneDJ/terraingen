@@ -1,6 +1,7 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 
+#include "dds.h"
 #include "mesh.h"
 #include "imp.h"
 #include "terrain.h"
@@ -44,6 +45,9 @@ Terrain::Terrain(size_t sidelen, float patchoffst, float amp)
 		patchoffset = patchoffst;
 		termesh =  gen_patch_grid(sidelen, patchoffst);
 
+		tersurface.grass = load_DDS_texture("media/textures/grass.dds");
+		tersurface.stone = load_DDS_texture("media/textures/stone.dds");
+		tersurface.snow = load_DDS_texture("media/textures/snow.dds");
 }
 
 Terrain::~Terrain(void) 
@@ -67,7 +71,6 @@ void Terrain::genheightmap(size_t imageres, float freq)
 		.height = imageres
 	};
 
-	//perlin_image(image.data, imageres, freq);
 	terrain_image(image.data, imageres, freq);
 
 	heightmap = bind_texture_red(image.data, imageres);
@@ -95,6 +98,12 @@ void Terrain::display(void)
 	glBindTexture(GL_TEXTURE_2D, normalmap);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, occlusmap);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, tersurface.grass);
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_2D, tersurface.stone);
+	glActiveTexture(GL_TEXTURE5);
+	glBindTexture(GL_TEXTURE_2D, tersurface.snow);
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glPatchParameteri(GL_PATCH_VERTICES, 4);
 	glDrawArrays(GL_PATCHES, 0, termesh.ecount);

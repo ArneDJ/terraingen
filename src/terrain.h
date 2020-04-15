@@ -1,3 +1,9 @@
+struct surface {
+	GLuint grass;
+	GLuint stone;
+	GLuint snow;
+};
+
 class Terrain {
 public:
 	float amplitude;
@@ -19,4 +25,5 @@ private:
 	struct rawimage normalimage;
 	struct rawimage occlusimage;
 	struct mesh termesh;
+	struct surface tersurface;
 };
