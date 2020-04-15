@@ -52,12 +52,12 @@ void main(void)
 	material mat = material(
 		texture(grassmap, 0.1*fragment.texcoord).rgb,
 		texture(stonemap, 0.01*fragment.texcoord).rgb,
-		texture(snowmap, 0.01*fragment.texcoord).rgb
+		texture(snowmap, 0.05*fragment.texcoord).rgb
 	);
 
 	float slope = 1.0 - normal.y;
 	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.55, 0.6, height));
-	color = mix(color, mat.stone, smoothstep(0.05, 0.2, slope));
+	color = mix(color, mat.stone, smoothstep(0.6, 0.7, slope));
 
 	float diffuse = max(0.0, dot(normal, lightdirection));
 

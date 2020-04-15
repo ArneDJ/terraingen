@@ -22,7 +22,7 @@ static inline float sample_height(int x, int y, const struct rawimage *image)
 
 static glm::vec3 filter_normal(int x, int y, const struct rawimage *image)
 {
-	const float strength = 8.f; // sobel filter strength
+	const float strength = 64.f; // sobel filter strength
 
 	float T = sample_height(x, y + 1, image);
 	float TR = sample_height(x + 1, y + 1, image);
