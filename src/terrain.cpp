@@ -40,14 +40,14 @@ static GLuint bind_texture_rgb(const struct rawimage *image)
 
 Terrain::Terrain(size_t sidelen, float patchoffst, float amp) 
 {
-		sidelength = sidelen;
-		amplitude = amp;
-		patchoffset = patchoffst;
-		termesh =  gen_patch_grid(sidelen, patchoffst);
+	sidelength = sidelen;
+	amplitude = amp;
+	patchoffset = patchoffst;
+	termesh =  gen_patch_grid(sidelen, patchoffst);
 
-		tersurface.grass = load_DDS_texture("media/textures/grass.dds");
-		tersurface.stone = load_DDS_texture("media/textures/stone.dds");
-		tersurface.snow = load_DDS_texture("media/textures/snow.dds");
+	tersurface.grass = load_DDS_texture("media/textures/grass.dds");
+	tersurface.stone = load_DDS_texture("media/textures/stone.dds");
+	tersurface.snow = load_DDS_texture("media/textures/snow.dds");
 }
 
 Terrain::~Terrain(void) 

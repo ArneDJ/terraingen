@@ -142,10 +142,12 @@ void run_terraingen(SDL_Window *window)
 	Shader shader = base_shader();
 	Shader terrain = terrain_shader();
 	Shader skybox = skybox_shader();
+
 	Terrain terra { 64, 32.f, 256.f };
 	terra.genheightmap(1024, 0.01);
 	terra.gennormalmap();
 	terra.genocclusmap();
+
 	Camera cam { glm::vec3(512.f, 128.f, 512.f) };
 	struct mesh cube = gen_mapcube();
 

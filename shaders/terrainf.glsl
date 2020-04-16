@@ -26,8 +26,8 @@ struct material {
 vec3 fog(vec3 c, float dist, float height)
 {
 	vec3 fog_color = {0.46, 0.7, 0.99};
-	float de = 0.065 * smoothstep(0.0, 3.3, 1.0 - height);
-	float di = 0.065 * smoothstep(0.0, 5.5, 1.0 - height);
+	float de = 0.035 * smoothstep(0.0, 3.3, 1.0 - height);
+	float di = 0.035 * smoothstep(0.0, 5.5, 1.0 - height);
 	float extinction = exp(-dist * de);
 	float inscattering = exp(-dist * di);
 
@@ -51,13 +51,13 @@ void main(void)
 
 	material mat = material(
 		texture(grassmap, 0.1*fragment.texcoord).rgb,
-		texture(stonemap, 0.01*fragment.texcoord).rgb,
+		texture(stonemap, 0.03*fragment.texcoord).rgb,
 		texture(snowmap, 0.05*fragment.texcoord).rgb
 	);
 
 	float slope = 1.0 - normal.y;
-	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.55, 0.6, height));
-	color = mix(color, mat.stone, smoothstep(0.6, 0.7, slope));
+	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.45, 0.5, height));
+	color = mix(color, mat.stone, smoothstep(0.7, 0.8, slope));
 
 	float diffuse = max(0.0, dot(normal, lightdirection));
 

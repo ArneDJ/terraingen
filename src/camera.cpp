@@ -7,7 +7,7 @@
 #include "camera.h"
 
 #define DEFAULT_SENSITIVITY 0.1f
-#define DEFAULT_SPEED 10.f
+#define DEFAULT_SPEED 50.f
 
 Camera::Camera(glm::vec3 pos) 
 {
