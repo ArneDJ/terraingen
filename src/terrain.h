@@ -21,6 +21,7 @@ private:
 	GLuint heightmap;
 	GLuint normalmap;
 	GLuint occlusmap;
+	GLuint detailmap;
 	struct rawimage heightimage;
 	struct rawimage normalimage;
 	struct rawimage occlusimage;

@@ -3,9 +3,10 @@
 layout(binding = 0) uniform sampler2D heightmap;
 layout(binding = 1) uniform sampler2D normalmap;
 layout(binding = 2) uniform sampler2D occlusmap;
-layout(binding = 3) uniform sampler2D grassmap;
-layout(binding = 4) uniform sampler2D stonemap;
-layout(binding = 5) uniform sampler2D snowmap;
+layout(binding = 3) uniform sampler2D detailmap;
+layout(binding = 4) uniform sampler2D grassmap;
+layout(binding = 5) uniform sampler2D stonemap;
+layout(binding = 6) uniform sampler2D snowmap;
 
 uniform float mapscale;
 uniform vec3 camerapos;
@@ -45,9 +46,17 @@ void main(void)
 	vec2 uv = fragment.texcoord * mapscale;
 	float height = texture(heightmap, uv).r;
 	vec3 normal = texture(normalmap, uv).rgb;
-	normal.x = (normal.x * 2.0) - 1.0;
-	normal.y = (normal.y * 2.0) - 1.0;
-	normal.z = (normal.z * 2.0) - 1.0;
+	normal = (normal * 2.0) - 1.0;
+
+	float slope = 1.0 - normal.y;
+
+	vec3 detail = texture(detailmap, fragment.texcoord*0.02).rgb;
+	detail  = (detail * 2.0) - 1.0;
+	float detaily = detail.y;
+	detail.y = detail.z;
+	detail.z = detaily;
+
+	normal = normalize((slope * detail) + normal);
 
 	material mat = material(
 		texture(grassmap, 0.1*fragment.texcoord).rgb,
@@ -55,9 +64,8 @@ void main(void)
 		texture(snowmap, 0.05*fragment.texcoord).rgb
 	);
 
-	float slope = 1.0 - normal.y;
 	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.45, 0.5, height));
-	color = mix(color, mat.stone, smoothstep(0.7, 0.8, slope));
+	color = mix(color, mat.stone, smoothstep(0.6, 0.8, slope));
 
 	float diffuse = max(0.0, dot(normal, lightdirection));
 
@@ -73,4 +81,5 @@ void main(void)
 	color.rgb = pow(color.rgb, vec3(1.0/gamma));
 	fcolor = vec4(color, 1.0);
 	//fcolor = vec4(normal, 1.0);
+	//fcolor = texture(detailmap, fragment.texcoord*0.05);
 }

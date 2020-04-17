@@ -1,6 +1,7 @@
 #version 430 core
 
 layout(binding = 0) uniform sampler2D heightmap;
+
 uniform mat4 view, project;
 uniform float amplitude;
 uniform float mapscale;
