@@ -50,6 +50,21 @@ static glm::vec3 filter_normal(int x, int y, const struct rawimage *image)
 	return normal;
 }
 
+float sample_image(int x, int y, const struct rawimage *image, unsigned int channel)
+{
+	if (channel > image->nchannels) {
+		std::cerr << "error: invalid channel to sample\n";
+		return 0.f;
+	}
+	if (x < 0 || y < 0 || x > (image->width-1) || y > (image->height-1)) {
+		return 0.f;
+	}
+
+	int index = y * image->width * image->nchannels + x * image->nchannels;
+
+	return image->data[index+channel] / 255.f;
+}
+
 struct rawimage gen_normalmap(const struct rawimage *heightmap)
 {
 	struct rawimage normalmap {

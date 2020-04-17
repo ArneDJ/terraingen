@@ -1,5 +1,11 @@
+#include <vector>
 #include <GL/glew.h>
 #include <GL/gl.h>
+
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "dds.h"
 #include "mesh.h"
@@ -113,4 +119,15 @@ void Terrain::display(void)
 	glPatchParameteri(GL_PATCH_VERTICES, 4);
 	glDrawArrays(GL_PATCHES, 0, termesh.ecount);
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+}
+
+float Terrain::sampleheight(float x, float z)
+{
+	return sample_image((int)x, (int)z, &heightimage, 0);
+}
+
+float Terrain::sampleslope(float x, float z)
+{
+	float slope = sample_image((int)x, (int)z, &normalimage, 1);
+	return 1.f - ((slope * 2.f) - 1.f);
 }

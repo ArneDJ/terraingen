@@ -14,6 +14,8 @@ public:
 	void gennormalmap(void);
 	void genocclusmap(void);
 	void display(void);
+	float sampleheight(float x, float z);
+	float sampleslope(float x, float z);
 private:
 	size_t sidelength;
 	float patchoffset;

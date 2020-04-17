@@ -7,6 +7,8 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/gtx/transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -24,6 +26,10 @@
 #define FOV 90.f
 #define NEAR 0.1f
 #define FAR 800.f
+
+#define GRASS_AMOUNT 10000000
+
+#define frand(x) (rand() / (1. + RAND_MAX) * x)
 
 GLuint load_TGA_cubemap(const char *fpath[6])
 {
@@ -56,11 +62,11 @@ GLuint load_TGA_cubemap(const char *fpath[6])
 	return texture;
 }
 
-Shader base_shader(void)
+Shader grass_shader(void)
 {
 	struct shaderinfo pipeline[] = {
-		{GL_VERTEX_SHADER, "shaders/vertex.glsl"},
-		{GL_FRAGMENT_SHADER, "shaders/fragment.glsl"},
+		{GL_VERTEX_SHADER, "shaders/grassv.glsl"},
+		{GL_FRAGMENT_SHADER, "shaders/grassf.glsl"},
 		{GL_NONE, NULL}
 	};
 
@@ -139,7 +145,7 @@ void run_terraingen(SDL_Window *window)
 	};
 	GLuint cubemap = load_TGA_cubemap(CUBEMAP_TEXTURES);
 
-	Shader shader = base_shader();
+	Shader undergrowth = grass_shader();
 	Shader terrain = terrain_shader();
 	Shader skybox = skybox_shader();
 
@@ -148,8 +154,26 @@ void run_terraingen(SDL_Window *window)
 	terra.gennormalmap();
 	terra.genocclusmap();
 
+	std::vector<glm::mat4> transforms;
+	for (int i = 0; i < GRASS_AMOUNT; i++) {
+		float x = frand(1024.f);
+		float z = frand(1024.f);
+		float y = terra.sampleheight(x, z);
+		if (terra.sampleslope(x, z) < 0.6 && y < 0.4) {
+			glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(x*2.f, terra.amplitude*y+frand(1.f), z*2.f));
+			float angle = frand(1.57);
+			glm::mat4 R = glm::rotate(angle, glm::vec3(0.0, 1.0, 0.0));
+			glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(4.f, 2.f, 4.f));
+			transforms.push_back(T * R * S);
+		}
+	}
 	Camera cam { glm::vec3(512.f, 128.f, 512.f) };
 	struct mesh cube = gen_mapcube();
+	struct mesh quads = gen_cardinal_quads();
+
+	GLuint grass = load_DDS_texture("media/textures/foliage/grass.dds");
+
+	instance_static_VAO(quads.VAO, &transforms);
 
 	SDL_Event event;
 	while (event.type != SDL_QUIT) {
@@ -160,12 +184,8 @@ void run_terraingen(SDL_Window *window)
 
 		glm::mat4 view = cam.view();
 		terrain.uniform_mat4("view", view);
-		shader.uniform_mat4("view", view);
+		undergrowth.uniform_mat4("view", view);
 		skybox.uniform_mat4("view", view);
-
-		shader.bind();
-		glBindVertexArray(cube.VAO);
-		glDrawElements(cube.mode, cube.ecount, GL_UNSIGNED_SHORT, NULL);
 
 		terrain.bind();
 		terrain.uniform_float("amplitude", terra.amplitude);
@@ -180,6 +200,16 @@ void run_terraingen(SDL_Window *window)
 		glBindVertexArray(cube.VAO);
 		glDrawElements(cube.mode, cube.ecount, GL_UNSIGNED_SHORT, NULL);
 		glDepthFunc(GL_LESS);
+
+		glDisable(GL_CULL_FACE);
+		undergrowth.bind();
+		undergrowth.uniform_float("mapscale", 1.f / 2048.f);
+		undergrowth.uniform_vec3("camerapos", cam.eye);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, grass);
+		glBindVertexArray(quads.VAO);
+		glDrawElementsInstanced(quads.mode, quads.ecount, GL_UNSIGNED_SHORT, NULL, transforms.size());
+		glEnable(GL_CULL_FACE);
 
 		SDL_GL_SwapWindow(window);
 	}
@@ -212,6 +242,9 @@ int main(int argc, char *argv[])
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_PRIMITIVE_RESTART);
 	glPrimitiveRestartIndex(0xFFFF);
+	glEnable(GL_DEPTH_TEST);
+ 	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	run_terraingen(window);
 
