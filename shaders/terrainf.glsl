@@ -5,8 +5,9 @@ layout(binding = 1) uniform sampler2D normalmap;
 layout(binding = 2) uniform sampler2D occlusmap;
 layout(binding = 3) uniform sampler2D detailmap;
 layout(binding = 4) uniform sampler2D grassmap;
-layout(binding = 5) uniform sampler2D stonemap;
-layout(binding = 6) uniform sampler2D snowmap;
+layout(binding = 5) uniform sampler2D dirtmap;
+layout(binding = 6) uniform sampler2D stonemap;
+layout(binding = 7) uniform sampler2D snowmap;
 
 uniform float mapscale;
 uniform vec3 camerapos;
@@ -20,6 +21,7 @@ in TESSEVAL {
 
 struct material {
 	vec3 grass;
+	vec3 dirt;
 	vec3 stone;
 	vec3 snow;
 };
@@ -60,12 +62,14 @@ void main(void)
 
 	material mat = material(
 		texture(grassmap, 0.1*fragment.texcoord).rgb,
+		texture(dirtmap, 0.1*fragment.texcoord).rgb,
 		texture(stonemap, 0.03*fragment.texcoord).rgb,
 		texture(snowmap, 0.05*fragment.texcoord).rgb
 	);
 
 	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.45, 0.5, height));
-	color = mix(color, mat.stone, smoothstep(0.6, 0.8, slope));
+	vec3 rocks = mix(mat.dirt, mat.stone, smoothstep(0.25, 0.4, height));
+	color = mix(color, rocks, smoothstep(0.65, 0.85, slope));
 
 	float diffuse = max(0.0, dot(normal, lightdirection));
 

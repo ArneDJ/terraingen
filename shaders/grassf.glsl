@@ -37,9 +37,10 @@ void main(void)
 	if(color.a < 0.5) { discard; }
 
 	float dist = distance(camerapos, fragment.position);
-	float blending = 1.0 / (0.05*dist);
+	float blending = 1.0 / (0.03*dist);
 	color.a *= blending;
-	if (color.a > 0.5) { color.a = 0.5; }
+	if (color.a < 0.1) { discard; }
+	if (color.a > 0.6) { color.a = 0.6; }
 
 	color.rgb *= texture(occlusmap, mapscale * fragment.position.xz).r;
 

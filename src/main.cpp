@@ -27,7 +27,7 @@
 #define NEAR 0.1f
 #define FAR 800.f
 
-#define GRASS_AMOUNT 10000000
+#define GRASS_AMOUNT 5000000
 
 #define frand(x) (rand() / (1. + RAND_MAX) * x)
 
@@ -149,31 +149,23 @@ void run_terraingen(SDL_Window *window)
 	Shader terrain = terrain_shader();
 	Shader skybox = skybox_shader();
 
-	Terrain terra { 64, 32.f, 256.f };
+	Terrain terra { 
+		64, 
+		32.f, 
+		256.f 
+	};
 	terra.genheightmap(1024, 0.01);
 	terra.gennormalmap();
 	terra.genocclusmap();
 
-	std::vector<glm::mat4> transforms;
-	for (int i = 0; i < GRASS_AMOUNT; i++) {
-		float x = frand(1024.f);
-		float z = frand(1024.f);
-		float y = terra.sampleheight(x, z);
-		if (terra.sampleslope(x, z) < 0.6 && y < 0.4) {
-			glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(x*2.f, terra.amplitude*y+frand(1.f), z*2.f));
-			float angle = frand(1.57);
-			glm::mat4 R = glm::rotate(angle, glm::vec3(0.0, 1.0, 0.0));
-			glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(4.f, 2.f, 4.f));
-			transforms.push_back(T * R * S);
-		}
-	}
-	Camera cam { glm::vec3(512.f, 128.f, 512.f) };
+	Grass grass { 
+		&terra,
+		GRASS_AMOUNT,
+		load_DDS_texture("media/textures/foliage/grass.dds")
+	};
+
 	struct mesh cube = gen_mapcube();
-	struct mesh quads = gen_cardinal_quads();
-
-	GLuint grass = load_DDS_texture("media/textures/foliage/grass.dds");
-
-	instance_static_VAO(quads.VAO, &transforms);
+	Camera cam { glm::vec3(512.f, 128.f, 512.f) };
 
 	SDL_Event event;
 	while (event.type != SDL_QUIT) {
@@ -201,15 +193,10 @@ void run_terraingen(SDL_Window *window)
 		glDrawElements(cube.mode, cube.ecount, GL_UNSIGNED_SHORT, NULL);
 		glDepthFunc(GL_LESS);
 
-		glDisable(GL_CULL_FACE);
 		undergrowth.bind();
 		undergrowth.uniform_float("mapscale", 1.f / 2048.f);
 		undergrowth.uniform_vec3("camerapos", cam.eye);
-		glActiveTexture(GL_TEXTURE4);
-		glBindTexture(GL_TEXTURE_2D, grass);
-		glBindVertexArray(quads.VAO);
-		glDrawElementsInstanced(quads.mode, quads.ecount, GL_UNSIGNED_SHORT, NULL, transforms.size());
-		glEnable(GL_CULL_FACE);
+		grass.display();
 
 		SDL_GL_SwapWindow(window);
 	}

@@ -5,6 +5,8 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/gtx/transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include "dds.h"
@@ -54,6 +56,7 @@ Terrain::Terrain(size_t sidelen, float patchoffst, float amp)
 	detailmap = load_DDS_texture("media/textures/detailmap.dds");
 
 	tersurface.grass = load_DDS_texture("media/textures/grass.dds");
+	tersurface.dirt = load_DDS_texture("media/textures/dirt.dds");
 	tersurface.stone = load_DDS_texture("media/textures/stone.dds");
 	tersurface.snow = load_DDS_texture("media/textures/snow.dds");
 }
@@ -112,9 +115,12 @@ void Terrain::display(void)
 	glActiveTexture(GL_TEXTURE4);
 	glBindTexture(GL_TEXTURE_2D, tersurface.grass);
 	glActiveTexture(GL_TEXTURE5);
-	glBindTexture(GL_TEXTURE_2D, tersurface.stone);
+	glBindTexture(GL_TEXTURE_2D, tersurface.dirt);
 	glActiveTexture(GL_TEXTURE6);
+	glBindTexture(GL_TEXTURE_2D, tersurface.stone);
+	glActiveTexture(GL_TEXTURE7);
 	glBindTexture(GL_TEXTURE_2D, tersurface.snow);
+
 	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glPatchParameteri(GL_PATCH_VERTICES, 4);
 	glDrawArrays(GL_PATCHES, 0, termesh.ecount);
