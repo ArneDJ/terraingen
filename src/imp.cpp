@@ -144,7 +144,6 @@ void terrain_image(unsigned char *image, size_t sidelength, float freq)
 		for (int j = 0; j < sidelength; j++) {
 			float x = i; float y = j;
 			cellnoise.GradientPerturb(x, y);
-			//float val = sqrt(noise.GetNoise(x, y));
 			float val = cellnoise.GetNoise(x, y);
 			if (val > max) { max = val; }
 		}
@@ -155,7 +154,6 @@ void terrain_image(unsigned char *image, size_t sidelength, float freq)
 		for (int j = 0; j < sidelength; j++) {
 			float x = i; float y = j;
 			cellnoise.GradientPerturb(x, y);
-			//float val = sqrt(noise.GetNoise(x, y));
 			float val = cellnoise.GetNoise(x, y);
 			val = val * (1.f / max);
 

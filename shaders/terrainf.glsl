@@ -50,6 +50,7 @@ float noise(in vec2 st)
 }
 
 #define OCTAVES 6
+/*
 float fbm(in vec2 st) 
 {
 	// Initial values
@@ -64,6 +65,22 @@ float fbm(in vec2 st)
 		amplitude *= .5;
 	}
 	return value;
+}
+*/
+float fbm(in vec2 _st) 
+{
+	float v = 0.0;
+	float a = 0.5;
+	vec2 shift = vec2(100.0);
+	// Rotate to reduce axial bias
+	mat2 rot = mat2(cos(0.5), sin(0.5),
+		    -sin(0.5), cos(0.50));
+	for (int i = 0; i < OCTAVES; ++i) {
+		v += a * noise(_st);
+		_st = rot * _st * 2.0 + shift;
+		a *= 0.5;
+	}
+	return v;
 }
 
 vec3 fog(vec3 c, float dist, float height)
@@ -103,15 +120,22 @@ void main(void)
 	material mat = material(
 		texture(grassmap, 0.1*fragment.texcoord).rgb,
 		texture(dirtmap, 0.1*fragment.texcoord).rgb,
-		texture(stonemap, 0.03*fragment.texcoord).rgb,
+		texture(stonemap, 0.03*fragment.texcoord).rgb * vec3(0.6, 0.6, 0.6),
 		texture(snowmap, 0.05*fragment.texcoord).rgb
 	);
 
-	float fractal = fbm(0.05 * fragment.position.xz);
-	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.4, clamp(fractal, 0.45, 0.55), height));
-	//vec3 color = mix(mat.grass, mat.snow, smoothstep(0.45, 0.5, fbm(0.1*fragment.position.xz)));
+	vec2 st = 0.05 * fragment.position.xz;
+	vec2 q = vec2(0.);
+	q.x = fbm(st);
+	q.y = fbm(st + vec2(1.0));
+	vec2 r = vec2(0.);
+	r.x = fbm( st + 20.0*q + vec2(1.7,9.2)+ 0.15);
+	r.y = fbm( st + 20.0*q + vec2(8.3,2.8)+ 0.126);
+	float strata = fbm(st+r);
+
+	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.45, 0.5, height + (0.1*strata)));
 	vec3 rocks = mix(mat.dirt, mat.stone, smoothstep(0.25, 0.4, height));
-	color = mix(color, rocks, smoothstep(0.6, 0.8, slope));
+	color = mix(color, rocks, smoothstep(0.3, 0.55, slope - (0.5*strata)));
 
 	float diffuse = max(0.0, dot(normal, lightdirection));
 
