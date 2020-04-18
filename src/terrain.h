@@ -40,3 +40,16 @@ private:
 	struct mesh quads;
 	GLuint texture;
 };
+
+class Skybox {
+public:
+	Skybox(GLuint cubemapbind)
+	{
+		cubemap = cubemapbind;
+		cube = gen_mapcube();
+	};
+	void display(void) const;
+private:
+	GLuint cubemap;
+	struct mesh cube;
+};

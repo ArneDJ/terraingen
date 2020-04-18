@@ -35,7 +35,6 @@ public:
  	}
 private:
 	GLuint program;
-
 	GLuint loadshaders(struct shaderinfo *shaders);
 	GLuint substitute(void);
 };

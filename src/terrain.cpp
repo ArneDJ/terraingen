@@ -10,11 +10,10 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "dds.h"
-#include "mesh.h"
 #include "imp.h"
-#include "terrain.h"
+#include "dds.h"
 #include "glwrapper.h"
+#include "terrain.h"
 
 Terrain::Terrain(size_t sidelen, float patchoffst, float amp) 
 {
@@ -139,9 +138,17 @@ Grass::Grass(const Terrain *ter, size_t density, GLuint texturebind)
 void Grass::display(void) const
 {
 	glDisable(GL_CULL_FACE);
-	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_2D, texture);
+	activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, texture);
 	glBindVertexArray(quads.VAO);
 	glDrawElementsInstanced(quads.mode, quads.ecount, GL_UNSIGNED_SHORT, NULL, instancecount);
 	glEnable(GL_CULL_FACE);
 }
+
+void Skybox::display(void) const
+{
+	glDepthFunc(GL_LEQUAL);
+	activate_texture(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, cubemap);
+	glBindVertexArray(cube.VAO);
+	glDrawElements(cube.mode, cube.ecount, GL_UNSIGNED_SHORT, NULL);
+	glDepthFunc(GL_LESS);
+};

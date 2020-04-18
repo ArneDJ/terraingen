@@ -11,14 +11,11 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "external/stbimage/stb_image.h"
-
-#include "shader.h"
-#include "camera.h"
-#include "mesh.h"
 #include "imp.h"
 #include "dds.h"
+#include "glwrapper.h"
+#include "shader.h"
+#include "camera.h"
 #include "terrain.h"
 
 #define WINDOW_WIDTH 1920
@@ -28,37 +25,6 @@
 #define FAR_CLIP 800.f
 
 #define GRASS_AMOUNT 500000
-
-GLuint load_TGA_cubemap(const char *fpath[6])
-{
-	GLuint texture;
-
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
-
-	for (int face = 0; face < 6; face++) {
-		GLenum target = GL_TEXTURE_CUBE_MAP_POSITIVE_X + face;
-		int width, height, nchannels;
-		unsigned char *image = stbi_load(fpath[face], &width, &height, &nchannels, 0);
-		if (image) {
-			glTexImage2D(target, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-			stbi_image_free(image);
-		} else {
-			std::cerr << "cubemap error: failed to load " << fpath[face] << std::endl;
-			return 0;
-		}
-	}
-
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-
-	return texture;
-}
 
 Shader grass_shader(void)
 {
@@ -122,13 +88,6 @@ Shader skybox_shader(void)
 	return shader;
 }
 
-void delete_mesh(const struct mesh *m)
-{
-	glDeleteBuffers(1, &m->EBO);
-	glDeleteBuffers(1, &m->VBO);
-	glDeleteVertexArrays(1, &m->VAO);
-}
-
 void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -142,27 +101,23 @@ void run_terraingen(SDL_Window *window)
 	"media/textures/skybox/dust_lf.tga",
 	};
 	GLuint cubemap = load_TGA_cubemap(CUBEMAP_TEXTURES);
+	Skybox skybox { cubemap };
 
 	Shader undergrowth = grass_shader();
-	Shader terrain = terrain_shader();
-	Shader skybox = skybox_shader();
+	Shader terra = terrain_shader();
+	Shader sky = skybox_shader();
 
-	Terrain terra { 
-		64, 
-		32.f, 
-		256.f 
-	};
-	terra.genheightmap(1024, 0.01);
-	terra.gennormalmap();
-	terra.genocclusmap();
+	Terrain terrain { 64, 32.f, 256.f };
+	terrain.genheightmap(1024, 0.01);
+	terrain.gennormalmap();
+	terrain.genocclusmap();
 
 	Grass grass { 
-		&terra,
+		&terrain,
 		GRASS_AMOUNT,
 		load_DDS_texture("media/textures/foliage/grass.dds")
 	};
 
-	struct mesh cube = gen_mapcube();
 	Camera cam { glm::vec3(1024.f, 128.f, 1024.f) };
 
 	SDL_Event event;
@@ -173,33 +128,26 @@ void run_terraingen(SDL_Window *window)
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glm::mat4 view = cam.view();
-		terrain.uniform_mat4("view", view);
+		terra.uniform_mat4("view", view);
 		undergrowth.uniform_mat4("view", view);
-		skybox.uniform_mat4("view", view);
+		sky.uniform_mat4("view", view);
 
-		terrain.bind();
-		terrain.uniform_float("amplitude", terra.amplitude);
-		terrain.uniform_float("mapscale", 1.f / terra.sidelength);
-		terrain.uniform_vec3("camerapos", cam.eye);
-		terra.display();
+		terra.bind();
+		terra.uniform_float("amplitude", terrain.amplitude);
+		terra.uniform_float("mapscale", 1.f / terrain.sidelength);
+		terra.uniform_vec3("camerapos", cam.eye);
+		terrain.display();
 
-		skybox.bind();
-		glDepthFunc(GL_LEQUAL);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
-		glBindVertexArray(cube.VAO);
-		glDrawElements(cube.mode, cube.ecount, GL_UNSIGNED_SHORT, NULL);
-		glDepthFunc(GL_LESS);
+		sky.bind();
+		skybox.display();
 
 		undergrowth.bind();
-		undergrowth.uniform_float("mapscale", 1.f / terra.sidelength);
+		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);
 		undergrowth.uniform_vec3("camerapos", cam.eye);
 		grass.display();
 
 		SDL_GL_SwapWindow(window);
 	}
-
-	delete_mesh(&cube);
 }
 
 int main(int argc, char *argv[])
