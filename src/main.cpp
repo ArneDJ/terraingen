@@ -88,10 +88,8 @@ Shader skybox_shader(void)
 	return shader;
 }
 
-void run_terraingen(SDL_Window *window)
+Skybox init_skybox(void)
 {
-	SDL_SetRelativeMouseMode(SDL_TRUE);
-
 	const char *CUBEMAP_TEXTURES[6] = {
 	"media/textures/skybox/dust_ft.tga",
 	"media/textures/skybox/dust_bk.tga",
@@ -103,20 +101,31 @@ void run_terraingen(SDL_Window *window)
 	GLuint cubemap = load_TGA_cubemap(CUBEMAP_TEXTURES);
 	Skybox skybox { cubemap };
 
+	return skybox;
+}
+
+void run_terraingen(SDL_Window *window)
+{
+	SDL_SetRelativeMouseMode(SDL_TRUE);
+
 	Shader undergrowth = grass_shader();
 	Shader terra = terrain_shader();
 	Shader sky = skybox_shader();
+
+	Skybox skybox = init_skybox();
 
 	Terrain terrain { 64, 32.f, 256.f };
 	terrain.genheightmap(1024, 0.01);
 	terrain.gennormalmap();
 	terrain.genocclusmap();
 
+/*
 	Grass grass { 
 		&terrain,
 		GRASS_AMOUNT,
 		load_DDS_texture("media/textures/foliage/grass.dds")
 	};
+*/
 
 	Camera cam { glm::vec3(1024.f, 128.f, 1024.f) };
 
@@ -141,10 +150,12 @@ void run_terraingen(SDL_Window *window)
 		sky.bind();
 		skybox.display();
 
+/*
 		undergrowth.bind();
 		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);
 		undergrowth.uniform_vec3("camerapos", cam.eye);
 		grass.display();
+*/
 
 		SDL_GL_SwapWindow(window);
 	}

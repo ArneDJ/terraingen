@@ -26,6 +26,46 @@ struct material {
 	vec3 snow;
 };
 
+float random(in vec2 st) 
+{
+	return fract(sin(dot(st.xy, vec2(12.9898,78.233)))* 43758.5453123);
+}
+
+// Based on Morgan McGuire @morgan3d
+// https://www.shadertoy.com/view/4dS3Wd
+float noise(in vec2 st) 
+{
+	vec2 i = floor(st);
+	vec2 f = fract(st);
+
+	// Four corners in 2D of a tile
+	float a = random(i);
+	float b = random(i + vec2(1.0, 0.0));
+	float c = random(i + vec2(0.0, 1.0));
+	float d = random(i + vec2(1.0, 1.0));
+
+	vec2 u = f * f * (3.0 - 2.0 * f);
+
+	return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+
+#define OCTAVES 6
+float fbm(in vec2 st) 
+{
+	// Initial values
+	float value = 0.0;
+	float amplitude = .5;
+	float frequency = 0.;
+	//
+	// Loop of octaves
+	for (int i = 0; i < OCTAVES; i++) {
+		value += amplitude * noise(st);
+		st *= 2.;
+		amplitude *= .5;
+	}
+	return value;
+}
+
 vec3 fog(vec3 c, float dist, float height)
 {
 	vec3 fog_color = {0.46, 0.7, 0.99};
@@ -67,9 +107,11 @@ void main(void)
 		texture(snowmap, 0.05*fragment.texcoord).rgb
 	);
 
-	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.45, 0.5, height));
+	float fractal = fbm(0.05 * fragment.position.xz);
+	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.4, clamp(fractal, 0.45, 0.55), height));
+	//vec3 color = mix(mat.grass, mat.snow, smoothstep(0.45, 0.5, fbm(0.1*fragment.position.xz)));
 	vec3 rocks = mix(mat.dirt, mat.stone, smoothstep(0.25, 0.4, height));
-	color = mix(color, rocks, smoothstep(0.65, 0.85, slope));
+	color = mix(color, rocks, smoothstep(0.6, 0.8, slope));
 
 	float diffuse = max(0.0, dot(normal, lightdirection));
 
