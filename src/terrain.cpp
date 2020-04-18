@@ -1,4 +1,5 @@
 #include <vector>
+#include <random>
 #include <GL/glew.h>
 #include <GL/gl.h>
 
@@ -13,45 +14,14 @@
 #include "mesh.h"
 #include "imp.h"
 #include "terrain.h"
-
-static GLuint bind_texture_red(unsigned char *image, size_t sidelength)
-{
-	GLuint texture;
-
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_R8, sidelength, sidelength);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, sidelength, sidelength, GL_RED, GL_UNSIGNED_BYTE, image);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	return texture;
-}
-
-static GLuint bind_texture_rgb(const struct rawimage *image)
-{
-	GLuint texture;
-
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGB8, image->width, image->height);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, image->width, image->height, GL_RGB, GL_UNSIGNED_BYTE, image->data);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	return texture;
-}
+#include "glwrapper.h"
 
 Terrain::Terrain(size_t sidelen, float patchoffst, float amp) 
 {
-	sidelength = sidelen;
+	sidelength = sidelen * patchoffst;
 	amplitude = amp;
-	patchoffset = patchoffst;
 	termesh =  gen_patch_grid(sidelen, patchoffst);
+	mapratio = 0.f;
 
 	detailmap = load_DDS_texture("media/textures/detailmap.dds");
 
@@ -66,9 +36,11 @@ Terrain::~Terrain(void)
 	if (heightimage.data != nullptr) { delete [] heightimage.data; }
 	if (normalimage.data != nullptr) { delete [] normalimage.data; }
 	if (occlusimage.data != nullptr) { delete [] occlusimage.data; }
+
 	if (glIsTexture(heightmap) == GL_TRUE) { glDeleteTextures(1, &heightmap); }
 	if (glIsTexture(normalmap) == GL_TRUE) { glDeleteTextures(1, &normalmap); }
 	if (glIsTexture(occlusmap) == GL_TRUE) { glDeleteTextures(1, &occlusmap); }
+
 	glDeleteBuffers(1, &termesh.VBO);
 	glDeleteVertexArrays(1, &termesh.VAO);
 };
@@ -84,56 +56,92 @@ void Terrain::genheightmap(size_t imageres, float freq)
 
 	terrain_image(image.data, imageres, freq);
 
-	heightmap = bind_texture_red(image.data, imageres);
+	heightmap = bind_texture(&image, GL_R8, GL_RED, GL_UNSIGNED_BYTE);
 	heightimage = image;
+	mapratio = float(sidelength) / float(imageres);
 }
 
 void Terrain::gennormalmap(void)
 {
 	normalimage = gen_normalmap(&heightimage);
-	normalmap = bind_texture_rgb(&normalimage);
+	normalmap = bind_texture(&normalimage, GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE);
 }
 
 void Terrain::genocclusmap(void)
 {
 	occlusimage = gen_occlusmap(&heightimage);
-	occlusmap = bind_texture_red(occlusimage.data, occlusimage.width);
+	occlusmap = bind_texture(&occlusimage, GL_R8, GL_RED, GL_UNSIGNED_BYTE);
 }
 
-void Terrain::display(void)
+void Terrain::display(void) const
 {
 	glBindVertexArray(termesh.VAO);
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, heightmap);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, normalmap);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, occlusmap);
-	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, detailmap);
-	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_2D, tersurface.grass);
-	glActiveTexture(GL_TEXTURE5);
-	glBindTexture(GL_TEXTURE_2D, tersurface.dirt);
-	glActiveTexture(GL_TEXTURE6);
-	glBindTexture(GL_TEXTURE_2D, tersurface.stone);
-	glActiveTexture(GL_TEXTURE7);
-	glBindTexture(GL_TEXTURE_2D, tersurface.snow);
+	activate_texture(GL_TEXTURE0, GL_TEXTURE_2D, heightmap);
+	activate_texture(GL_TEXTURE1, GL_TEXTURE_2D, normalmap);
+	activate_texture(GL_TEXTURE2, GL_TEXTURE_2D, occlusmap);
+	activate_texture(GL_TEXTURE3, GL_TEXTURE_2D, detailmap);
+	activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, tersurface.grass);
+	activate_texture(GL_TEXTURE5, GL_TEXTURE_2D, tersurface.dirt);
+	activate_texture(GL_TEXTURE6, GL_TEXTURE_2D, tersurface.stone);
+	activate_texture(GL_TEXTURE7, GL_TEXTURE_2D, tersurface.snow);
 
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glPatchParameteri(GL_PATCH_VERTICES, 4);
 	glDrawArrays(GL_PATCHES, 0, termesh.ecount);
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-float Terrain::sampleheight(float x, float z)
+float Terrain::sampleheight(float x, float z) const
 {
 	return sample_image((int)x, (int)z, &heightimage, 0);
 }
 
-float Terrain::sampleslope(float x, float z)
+float Terrain::sampleslope(float x, float z) const
 {
 	float slope = sample_image((int)x, (int)z, &normalimage, 1);
 	return 1.f - ((slope * 2.f) - 1.f);
+}
+
+Grass::Grass(const Terrain *ter, size_t density, GLuint texturebind)
+{
+	const float invratio = 1.f / ter->mapratio;
+	const float minpos = 0.25f * (invratio * ter->sidelength); // max grass position
+	const float maxpos = 0.75f * (invratio * ter->sidelength); // min grass position
+
+	quads = gen_cardinal_quads();
+	texture = texturebind;
+
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<> dis(0.f, 1.57f);
+	std::uniform_real_distribution<> map(minpos, maxpos);
+
+	std::vector<glm::mat4> transforms;
+	transforms.reserve(density);
+	for (int i = 0; i < density; i++) {
+		float x = map(gen);
+		float z = map(gen);
+		float y = ter->sampleheight(x, z);
+		if (ter->sampleslope(x, z) < 0.6 && y < 0.4) {
+			float angle = dis(gen);
+			glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(x*ter->mapratio, ter->amplitude*y+dis(gen), z*ter->mapratio));
+			glm::mat4 R = glm::rotate(angle, glm::vec3(0.0, 1.0, 0.0));
+			glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(6.f, 2.f, 6.f));
+			transforms.push_back(T * R * S);
+		}
+	}
+	instancecount = transforms.size();
+	transforms.resize(instancecount);
+	instance_static_VAO(quads.VAO, &transforms);
+}
+
+void Grass::display(void) const
+{
+	glDisable(GL_CULL_FACE);
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glBindVertexArray(quads.VAO);
+	glDrawElementsInstanced(quads.mode, quads.ecount, GL_UNSIGNED_SHORT, NULL, instancecount);
+	glEnable(GL_CULL_FACE);
 }

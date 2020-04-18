@@ -24,12 +24,10 @@
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
 #define FOV 90.f
-#define NEAR 0.1f
-#define FAR 800.f
+#define NEAR_CLIP 0.1f
+#define FAR_CLIP 800.f
 
-#define GRASS_AMOUNT 5000000
-
-#define frand(x) (rand() / (1. + RAND_MAX) * x)
+#define GRASS_AMOUNT 500000
 
 GLuint load_TGA_cubemap(const char *fpath[6])
 {
@@ -75,7 +73,7 @@ Shader grass_shader(void)
 	shader.bind();
 
 	const float aspect = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
-	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR, FAR);
+	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR_CLIP, FAR_CLIP);
 	shader.uniform_mat4("project", project);
 
 	glm::mat4 model = glm::mat4(1.f);
@@ -99,7 +97,7 @@ Shader terrain_shader(void)
 	shader.bind();
 
 	const float aspect = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
-	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR, FAR);
+	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR_CLIP, FAR_CLIP);
 	shader.uniform_mat4("project", project);
 
 	return shader;
@@ -118,7 +116,7 @@ Shader skybox_shader(void)
 	shader.bind();
 
 	const float aspect = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
-	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR, FAR);
+	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR_CLIP, FAR_CLIP);
 	shader.uniform_mat4("project", project);
 
 	return shader;
@@ -165,7 +163,7 @@ void run_terraingen(SDL_Window *window)
 	};
 
 	struct mesh cube = gen_mapcube();
-	Camera cam { glm::vec3(512.f, 128.f, 512.f) };
+	Camera cam { glm::vec3(1024.f, 128.f, 1024.f) };
 
 	SDL_Event event;
 	while (event.type != SDL_QUIT) {
@@ -181,7 +179,7 @@ void run_terraingen(SDL_Window *window)
 
 		terrain.bind();
 		terrain.uniform_float("amplitude", terra.amplitude);
-		terrain.uniform_float("mapscale", 1.f / 2048.f);
+		terrain.uniform_float("mapscale", 1.f / terra.sidelength);
 		terrain.uniform_vec3("camerapos", cam.eye);
 		terra.display();
 
@@ -194,7 +192,7 @@ void run_terraingen(SDL_Window *window)
 		glDepthFunc(GL_LESS);
 
 		undergrowth.bind();
-		undergrowth.uniform_float("mapscale", 1.f / 2048.f);
+		undergrowth.uniform_float("mapscale", 1.f / terra.sidelength);
 		undergrowth.uniform_vec3("camerapos", cam.eye);
 		grass.display();
 

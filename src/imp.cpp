@@ -123,7 +123,7 @@ struct rawimage gen_occlusmap(const struct rawimage *heightmap)
 void terrain_image(unsigned char *image, size_t sidelength, float freq)
 {
 	FastNoise cellnoise;
-	cellnoise.SetSeed(404);
+	cellnoise.SetSeed(444);
 	cellnoise.SetNoiseType(FastNoise::Cellular);
 	cellnoise.SetCellularDistanceFunction(FastNoise::Natural);
 	cellnoise.SetFrequency(freq);
@@ -131,7 +131,7 @@ void terrain_image(unsigned char *image, size_t sidelength, float freq)
 	cellnoise.SetGradientPerturbAmp(20.f);
 
 	FastNoise fractnoise;
-	fractnoise.SetSeed(404);
+	fractnoise.SetSeed(444);
 	fractnoise.SetNoiseType(FastNoise::SimplexFractal);
 	fractnoise.SetFractalType(FastNoise::RigidMulti);
 	fractnoise.SetFrequency(0.002);
