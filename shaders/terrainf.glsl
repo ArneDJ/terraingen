@@ -11,6 +11,8 @@ layout(binding = 7) uniform sampler2D snowmap;
 
 uniform float mapscale;
 uniform vec3 camerapos;
+uniform vec3 fogcolor;
+uniform float fogfactor;
 
 out vec4 fcolor;
 
@@ -97,13 +99,12 @@ float warpfbm(vec2 st)
 
 vec3 fog(vec3 c, float dist, float height)
 {
-	vec3 fog_color = {0.76, 0.5, 0.29}; /* TODO make this uniform */
-	float de = 0.015 * smoothstep(0.0, 3.3, 1.0 - height);
-	float di = 0.015 * smoothstep(0.0, 5.5, 1.0 - height);
+	float de = fogfactor * smoothstep(0.0, 3.3, 1.0 - height);
+	float di = fogfactor * smoothstep(0.0, 5.5, 1.0 - height);
 	float extinction = exp(-dist * de);
 	float inscattering = exp(-dist * di);
 
-	return c * extinction + fog_color * (1.0 - inscattering);
+	return c * extinction + fogcolor * (1.0 - inscattering);
 }
 
 // this can have a performance impact
@@ -144,21 +145,19 @@ void main(void)
 	detail.y = detail.z;
 	detail.z = detaily;
 
-	vec3 stone = tri_planar_texture(normal, stonemap, 0.03*fragment.position);
-
 	normal = normalize((slope * detail) + normal);
 
 	material mat = material(
-		texture(grassmap, 0.1*fragment.texcoord).rgb * vec3(1.0, 0.4, 0.0),
-		texture(dirtmap, 0.1*fragment.texcoord).rgb * vec3(1.0, 0.4, 0.0),
-		stone * vec3(1.0, 0.4, 0.0),
-		texture(snowmap, 0.05*fragment.texcoord).rgb * vec3(0.8, 0.3, 0.0)
+		texture(grassmap, 0.1*fragment.texcoord).rgb,
+		texture(dirtmap, 0.1*fragment.texcoord).rgb,
+		tri_planar_texture(normal, stonemap, 0.03*fragment.position) * vec3(0.8, 0.8, 0.8),
+		texture(snowmap, 0.05*fragment.texcoord).rgb
 	);
 
 	float strata = warpfbm(0.05 * fragment.position.xz);
 
-	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.2, 0.3, height + (0.1*strata)));
-	vec3 rocks = mix(mat.dirt, mat.stone, smoothstep(0.25, 0.4, height));
+	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.45, 0.55, height + (0.1*strata)));
+	vec3 rocks = mix(mat.dirt, mat.stone, smoothstep(0.3, 0.4, height));
 	color = mix(color, rocks, smoothstep(0.4, 0.55, slope - (0.5*strata)));
 
 	float diffuse = max(0.0, dot(normal, lightdirection));

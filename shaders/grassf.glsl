@@ -7,6 +7,8 @@ layout(binding = 4) uniform sampler2D basemap;
 
 uniform float mapscale;
 uniform vec3 camerapos;
+uniform vec3 fogcolor;
+uniform float fogfactor;
 
 out vec4 color;
 
@@ -17,13 +19,12 @@ in VERTEX {
 
 vec3 fog(vec3 c, float dist, float height)
 {
-	vec3 fog_color = {0.46, 0.7, 0.99};
-	float de = 0.035 * smoothstep(0.0, 3.3, 1.0 - height);
-	float di = 0.035 * smoothstep(0.0, 5.5, 1.0 - height);
+	float de = fogfactor * smoothstep(0.0, 3.3, 1.0 - height);
+	float di = fogfactor * smoothstep(0.0, 5.5, 1.0 - height);
 	float extinction = exp(-dist * de);
 	float inscattering = exp(-dist * di);
 
-	return c * extinction + fog_color * (1.0 - inscattering);
+	return c * extinction + fogcolor * (1.0 - inscattering);
 }
 
 void main(void)

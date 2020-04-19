@@ -22,12 +22,12 @@ Terrain::Terrain(size_t sidelen, float patchoffst, float amp)
 	termesh =  gen_patch_grid(sidelen, patchoffst);
 	mapratio = 0.f;
 
-	detailmap = load_DDS_texture("media/textures/detailmap.dds");
+	detailmap = load_DDS_texture("media/textures/terain/detailmap.dds");
 
-	tersurface.grass = load_DDS_texture("media/textures/grass.dds");
-	tersurface.dirt = load_DDS_texture("media/textures/dirt.dds");
-	tersurface.stone = load_DDS_texture("media/textures/stone.dds");
-	tersurface.snow = load_DDS_texture("media/textures/snow.dds");
+	tersurface.grass = load_DDS_texture("media/textures/terain/grass.dds");
+	tersurface.dirt = load_DDS_texture("media/textures/terain/dirt.dds");
+	tersurface.stone = load_DDS_texture("media/textures/terain/stone.dds");
+	tersurface.snow = load_DDS_texture("media/textures/terain/snow.dds");
 }
 
 Terrain::~Terrain(void) 
@@ -53,7 +53,7 @@ void Terrain::genheightmap(size_t imageres, float freq)
 		.height = imageres
 	};
 
-	terrain_image(image.data, imageres, freq);
+	terrain_image(image.data, imageres, 404, freq);
 
 	heightmap = bind_texture(&image, GL_R8, GL_RED, GL_UNSIGNED_BYTE);
 	heightimage = image;

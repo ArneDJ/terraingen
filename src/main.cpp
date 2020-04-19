@@ -22,7 +22,7 @@
 #define WINDOW_HEIGHT 1080
 #define FOV 90.f
 #define NEAR_CLIP 0.1f
-#define FAR_CLIP 800.f
+#define FAR_CLIP 1000.f
 
 #define GRASS_AMOUNT 500000
 
@@ -44,6 +44,8 @@ Shader grass_shader(void)
 
 	glm::mat4 model = glm::mat4(1.f);
 	shader.uniform_mat4("model", model);
+	shader.uniform_vec3("fogcolor", glm::vec3(0.46, 0.7, 0.99));
+	shader.uniform_float("fogfactor", 0.025);
 
 	return shader;
 }
@@ -65,6 +67,8 @@ Shader terrain_shader(void)
 	const float aspect = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
 	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR_CLIP, FAR_CLIP);
 	shader.uniform_mat4("project", project);
+	shader.uniform_vec3("fogcolor", glm::vec3(0.46, 0.7, 0.99));
+	shader.uniform_float("fogfactor", 0.025);
 
 	return shader;
 }
@@ -119,13 +123,11 @@ void run_terraingen(SDL_Window *window)
 	terrain.gennormalmap();
 	terrain.genocclusmap();
 
-	/*
 	Grass grass { 
 		&terrain,
 		GRASS_AMOUNT,
 		load_DDS_texture("media/textures/foliage/grass.dds")
 	};
-	*/
 
 	Camera cam { glm::vec3(1024.f, 128.f, 1024.f) };
 
@@ -153,7 +155,7 @@ void run_terraingen(SDL_Window *window)
 		undergrowth.bind();
 		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);
 		undergrowth.uniform_vec3("camerapos", cam.eye);
-		//grass.display();
+		grass.display();
 
 		SDL_GL_SwapWindow(window);
 	}
