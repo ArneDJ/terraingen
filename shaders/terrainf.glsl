@@ -49,8 +49,8 @@ float noise(in vec2 st)
 	return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
 }
 
-#define OCTAVES 6
-/*
+#define OCTAVES 5
+
 float fbm(in vec2 st) 
 {
 	// Initial values
@@ -66,8 +66,8 @@ float fbm(in vec2 st)
 	}
 	return value;
 }
-*/
-float fbm(in vec2 _st) 
+
+float shiftfbm(in vec2 _st) 
 {
 	float v = 0.0;
 	float a = 0.5;
@@ -83,15 +83,44 @@ float fbm(in vec2 _st)
 	return v;
 }
 
+float warpfbm(vec2 st)
+{
+	vec2 q = vec2(0.);
+	q.x = shiftfbm(st);
+	q.y = shiftfbm(st + vec2(1.0));
+	vec2 r = vec2(0.);
+	r.x = shiftfbm( st + 20.0*q + vec2(1.7,9.2)+ 0.15);
+	r.y = shiftfbm( st + 20.0*q + vec2(8.3,2.8)+ 0.126);
+
+	return shiftfbm(st+r);
+}
+
 vec3 fog(vec3 c, float dist, float height)
 {
-	vec3 fog_color = {0.46, 0.7, 0.99};
-	float de = 0.035 * smoothstep(0.0, 3.3, 1.0 - height);
-	float di = 0.035 * smoothstep(0.0, 5.5, 1.0 - height);
+	vec3 fog_color = {0.76, 0.5, 0.29}; /* TODO make this uniform */
+	float de = 0.015 * smoothstep(0.0, 3.3, 1.0 - height);
+	float di = 0.015 * smoothstep(0.0, 5.5, 1.0 - height);
 	float extinction = exp(-dist * de);
 	float inscattering = exp(-dist * di);
 
 	return c * extinction + fog_color * (1.0 - inscattering);
+}
+
+// this can have a performance impact
+vec3 tri_planar_texture(vec3 wnorm, sampler2D samp, vec3 fragpos)
+{
+	vec3 blending = abs(wnorm);
+	blending = normalize(max(blending, 0.00001)); // Force weights to sum to 1.0
+	float b = (blending.x + blending.y + blending.z);
+	blending /= vec3(b, b, b);
+
+	vec4 xaxis = texture2D(samp, fragpos.yz);
+	vec4 yaxis = texture2D(samp, fragpos.xz);
+	vec4 zaxis = texture2D(samp, fragpos.xy);
+	// blend the results of the 3 planar projections.
+	vec4 tex = xaxis * blending.x + xaxis * blending.y + zaxis * blending.z;
+
+	return tex.xyz;
 }
 
 void main(void)
@@ -115,27 +144,22 @@ void main(void)
 	detail.y = detail.z;
 	detail.z = detaily;
 
+	vec3 stone = tri_planar_texture(normal, stonemap, 0.03*fragment.position);
+
 	normal = normalize((slope * detail) + normal);
 
 	material mat = material(
-		texture(grassmap, 0.1*fragment.texcoord).rgb,
-		texture(dirtmap, 0.1*fragment.texcoord).rgb,
-		texture(stonemap, 0.03*fragment.texcoord).rgb * vec3(0.6, 0.6, 0.6),
-		texture(snowmap, 0.05*fragment.texcoord).rgb
+		texture(grassmap, 0.1*fragment.texcoord).rgb * vec3(1.0, 0.4, 0.0),
+		texture(dirtmap, 0.1*fragment.texcoord).rgb * vec3(1.0, 0.4, 0.0),
+		stone * vec3(1.0, 0.4, 0.0),
+		texture(snowmap, 0.05*fragment.texcoord).rgb * vec3(0.8, 0.3, 0.0)
 	);
 
-	vec2 st = 0.05 * fragment.position.xz;
-	vec2 q = vec2(0.);
-	q.x = fbm(st);
-	q.y = fbm(st + vec2(1.0));
-	vec2 r = vec2(0.);
-	r.x = fbm( st + 20.0*q + vec2(1.7,9.2)+ 0.15);
-	r.y = fbm( st + 20.0*q + vec2(8.3,2.8)+ 0.126);
-	float strata = fbm(st+r);
+	float strata = warpfbm(0.05 * fragment.position.xz);
 
-	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.45, 0.5, height + (0.1*strata)));
+	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.2, 0.3, height + (0.1*strata)));
 	vec3 rocks = mix(mat.dirt, mat.stone, smoothstep(0.25, 0.4, height));
-	color = mix(color, rocks, smoothstep(0.3, 0.55, slope - (0.5*strata)));
+	color = mix(color, rocks, smoothstep(0.4, 0.55, slope - (0.5*strata)));
 
 	float diffuse = max(0.0, dot(normal, lightdirection));
 

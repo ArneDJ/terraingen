@@ -119,11 +119,13 @@ void run_terraingen(SDL_Window *window)
 	terrain.gennormalmap();
 	terrain.genocclusmap();
 
+	/*
 	Grass grass { 
 		&terrain,
 		GRASS_AMOUNT,
 		load_DDS_texture("media/textures/foliage/grass.dds")
 	};
+	*/
 
 	Camera cam { glm::vec3(1024.f, 128.f, 1024.f) };
 
@@ -151,7 +153,7 @@ void run_terraingen(SDL_Window *window)
 		undergrowth.bind();
 		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);
 		undergrowth.uniform_vec3("camerapos", cam.eye);
-		grass.display();
+		//grass.display();
 
 		SDL_GL_SwapWindow(window);
 	}

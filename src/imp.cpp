@@ -108,17 +108,20 @@ struct rawimage gen_occlusmap(const struct rawimage *heightmap)
 }
 
 /* 
- * preset: Old Mountains
+ * preset: Mountains
  * noise type: Cellular
  * cellular distance function: natural
  * cellular return type: distance 2
- * gradient perturb amp: 50
+ * gradient perturb amp: 20
+ * frequency: 0.001
  *
  * noise type: Simplex Fractal
  * fractal type: rigid multi
  * frequency: 0.002
  * octaves: 6
  * lacunarity: 2
+ * gradient perturb amp: 50
+ * frequency: 0.002
  */
 void terrain_image(unsigned char *image, size_t sidelength, float freq)
 {
@@ -127,8 +130,8 @@ void terrain_image(unsigned char *image, size_t sidelength, float freq)
 	cellnoise.SetNoiseType(FastNoise::Cellular);
 	cellnoise.SetCellularDistanceFunction(FastNoise::Natural);
 	cellnoise.SetFrequency(freq);
-	cellnoise.SetCellularReturnType(FastNoise::Distance2);
-	cellnoise.SetGradientPerturbAmp(20.f);
+	cellnoise.SetCellularReturnType(FastNoise::Distance2Sub);
+	cellnoise.SetGradientPerturbAmp(50.f);
 
 	FastNoise fractnoise;
 	fractnoise.SetSeed(444);
@@ -160,11 +163,17 @@ void terrain_image(unsigned char *image, size_t sidelength, float freq)
 			x = i; y = j;
 			fractnoise.GradientPerturb(x, y);
 			float fract = fractnoise.GetNoise(x, y);
+			float mask = fractnoise.GetNoise(0.8*x, 0.8*y);
+			mask = (mask + 1.f) / 2.f;
 			fract = (fract + 1.f) / 2.f;
 			fract = glm::clamp(float(fract), 0.f, 1.f); 
 
 			val = glm::clamp(float(val), 0.f, 1.f);
+			if (val > 0.3 && val < 0.5) {
+				val = 0.4;
+			}
 			val = 0.5 * (val + fract);
+			val *= mask;
 			image[index++] = val * 255.f;
 		}
 	}
