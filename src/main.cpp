@@ -125,6 +125,7 @@ Skybox init_skybox(void)
 	"media/textures/skybox/dust_rt.tga",
 	"media/textures/skybox/dust_lf.tga",
 	};
+
 	GLuint cubemap = load_TGA_cubemap(CUBEMAP_TEXTURES);
 	Skybox skybox { cubemap };
 
