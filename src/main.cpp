@@ -17,6 +17,7 @@
 #include "shader.h"
 #include "camera.h"
 #include "terrain.h"
+#include "gltf.h"
 
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
@@ -25,6 +26,30 @@
 #define FAR_CLIP 1000.f
 
 #define GRASS_AMOUNT 500000
+
+Shader base_shader(void)
+{
+	struct shaderinfo pipeline[] = {
+		{GL_VERTEX_SHADER, "shaders/basev.glsl"},
+		{GL_FRAGMENT_SHADER, "shaders/basef.glsl"},
+		{GL_NONE, NULL}
+	};
+
+	Shader shader(pipeline);
+
+	shader.bind();
+
+	const float aspect = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
+	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR_CLIP, FAR_CLIP);
+	shader.uniform_mat4("project", project);
+
+	glm::mat4 model = glm::mat4(1.f);
+	shader.uniform_mat4("model", model);
+	shader.uniform_vec3("fogcolor", glm::vec3(0.46, 0.7, 0.99));
+	shader.uniform_float("fogfactor", 0.025);
+
+	return shader;
+}
 
 Shader grass_shader(void)
 {
@@ -57,29 +82,6 @@ Shader terrain_shader(void)
 		{GL_TESS_CONTROL_SHADER, "shaders/terraintc.glsl"},
 		{GL_TESS_EVALUATION_SHADER, "shaders/terrainte.glsl"},
 		{GL_FRAGMENT_SHADER, "shaders/terrainf.glsl"},
-		{GL_NONE, NULL}
-	};
-
-	Shader shader(pipeline);
-
-	shader.bind();
-
-	const float aspect = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
-	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR_CLIP, FAR_CLIP);
-	shader.uniform_mat4("project", project);
-	shader.uniform_vec3("fogcolor", glm::vec3(0.46, 0.7, 0.99));
-	shader.uniform_float("fogfactor", 0.025);
-
-	return shader;
-}
-
-Shader water_shader(void)
-{
-	struct shaderinfo pipeline[] = {
-		{GL_VERTEX_SHADER, "shaders/terrainv.glsl"},
-		{GL_TESS_CONTROL_SHADER, "shaders/watertc.glsl"},
-		{GL_TESS_EVALUATION_SHADER, "shaders/waterte.glsl"},
-		{GL_FRAGMENT_SHADER, "shaders/waterf.glsl"},
 		{GL_NONE, NULL}
 	};
 
@@ -136,10 +138,10 @@ void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 
+	Shader base = base_shader();
 	Shader undergrowth = grass_shader();
 	Shader terra = terrain_shader();
 	Shader sky = skybox_shader();
-	Shader aqua = water_shader();
 
 	Skybox skybox = init_skybox();
 
@@ -148,28 +150,44 @@ void run_terraingen(SDL_Window *window)
 	terrain.gennormalmap();
 	terrain.genocclusmap();
 
+/*
 	Grass grass { 
 		&terrain,
 		GRASS_AMOUNT,
 		load_DDS_texture("media/textures/foliage/grass.dds")
 	};
+*/
 
-	struct mesh water = gen_patch_grid(64, 32.f);
-	GLuint waternormal = load_DDS_texture("media/textures/water/normal.dds");
+	gltf::Model model;
+	//model.importf("media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb");
+	//
+	model.importf("media/models/dragon.glb");
 
 	Camera cam { glm::vec3(1024.f, 128.f, 1024.f) };
+
+	float start = 0.f;
+ float end = 0.f;
+	static float timer = 0.f;
 
 	SDL_Event event;
 	while (event.type != SDL_QUIT) {
 		while(SDL_PollEvent(&event));
 		float time = 0.01 * float(SDL_GetTicks());
+		start = 0.001f * SDL_GetTicks();
+		const float delta = start - end;
 		cam.update(0.01f);
+
+		timer += delta;
+		if (model.animations.empty() == false) {
+			if (timer > model.animations[0].end) { timer -= model.animations[0].end; }
+			model.updateAnimation(0, timer);
+		}
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glm::mat4 view = cam.view();
+		base.uniform_mat4("view", view);
 		terra.uniform_mat4("view", view);
-		aqua.uniform_mat4("view", view);
 		undergrowth.uniform_mat4("view", view);
 		sky.uniform_mat4("view", view);
 
@@ -179,24 +197,21 @@ void run_terraingen(SDL_Window *window)
 		terra.uniform_vec3("camerapos", cam.eye);
 		terrain.display();
 
+		base.bind();
+		model.display(&base, 1.f);
+
 		sky.bind();
 		skybox.display();
 
-		aqua.bind();
-		aqua.uniform_float("time", 0.1*time);
-		activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, waternormal);
-		glBindVertexArray(water.VAO);
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		glPatchParameteri(GL_PATCH_VERTICES, 4);
-		glDrawArrays(GL_PATCHES, 0, water.ecount);
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
+/*
 		undergrowth.bind();
 		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);
 		undergrowth.uniform_vec3("camerapos", cam.eye);
 		grass.display();
+*/
 
 		SDL_GL_SwapWindow(window);
+		end = start;
 	}
 }
 

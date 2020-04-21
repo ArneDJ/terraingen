@@ -21,12 +21,11 @@ void main(void)
 
 	pos.y = 80.0;
 
-	mat3 inverseviewnormal = inverse(mat3(view));
 	vec4 vertex = view * pos;
 
 	tesseval.position = pos.xyz;
 	tesseval.texcoord = pos.xz;
-	tesseval.incident = inverseviewnormal * vec3(vertex);
+	tesseval.incident = inverse(mat3(view)) * vec3(vertex);
 
 	gl_Position = project * vertex;
 }
