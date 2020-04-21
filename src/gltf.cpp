@@ -24,7 +24,7 @@
 
 #define BUFFER_OFFSET(i) ((char *)NULL + (i))
 
-static GLuint bind_VAO(std::vector<uint32_t> &indexbuffer, std::vector<vertex> &vertexbuffer)
+static GLuint bind_VAO(std::vector<unsigned short> &indexbuffer, std::vector<vertex> &vertexbuffer)
 {
 	// https://www.khronos.org/opengl/wiki/Buffer_Object
 	// In some cases, data stored in a buffer object will not be changed once it is uploaded. For example, vertex data can be static: set once and used many times.
@@ -38,7 +38,7 @@ static GLuint bind_VAO(std::vector<uint32_t> &indexbuffer, std::vector<vertex> &
 	GLuint EBO;
 	glGenBuffers(1, &EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferStorage(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t)*indexbuffer.size(), indexbuffer.data(), flags);
+	glBufferStorage(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short)*indexbuffer.size(), indexbuffer.data(), flags);
 
 	GLuint VBO;
 	glGenBuffers(1, &VBO);
@@ -138,7 +138,7 @@ static inline int32_t tinygltfsize(uint32_t ty)
 }
 
 // fills an index buffer and returns the index count
-static uint32_t load_indices(const tinygltf::Model &model, const tinygltf::Primitive &primitive, std::vector<uint32_t> &indexbuffer)
+static uint32_t load_indices(const tinygltf::Model &model, const tinygltf::Primitive &primitive, std::vector<unsigned short> &indexbuffer)
 {
 	uint32_t indexcount = 0;
 
@@ -178,10 +178,11 @@ static uint32_t load_indices(const tinygltf::Model &model, const tinygltf::Primi
 	return indexcount;
 }
 
-void gltf::Model::load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &mesh, gltf::mesh_t *newmesh, std::vector<uint32_t> &indexbuffer, std::vector<vertex> &vertexbuffer)
+void gltf::Model::load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &mesh, gltf::mesh_t *newmesh, std::vector<unsigned short> &indexbuffer, std::vector<vertex> &vertexbuffer)
 {
 	for (size_t j = 0; j < mesh.primitives.size(); j++) {
 		const tinygltf::Primitive &primitive = mesh.primitives[j];
+		//uint32_t indexstart = static_cast<uint32_t>(indexbuffer.size());
 		uint32_t indexstart = static_cast<uint32_t>(indexbuffer.size());
 		uint32_t vertexstart = static_cast<uint32_t>(vertexbuffer.size());
 		uint32_t indexcount = 0;
@@ -196,7 +197,7 @@ void gltf::Model::load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &
 		const float *bufferpos = nullptr;
 		const float *buffernormals = nullptr;
 		const float *buffertexcoords = nullptr;
-		const uint16_t *bufferjoints = nullptr;
+		const uint32_t *bufferjoints = nullptr;
 		const float *bufferweights = nullptr;
 
 		int posbytestride = 0;
@@ -233,7 +234,7 @@ void gltf::Model::load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &
 		if (primitive.attributes.find("JOINTS_0") != primitive.attributes.end()) {
 			const tinygltf::Accessor &jointaccess = model.accessors[primitive.attributes.find("JOINTS_0")->second];
 			const tinygltf::BufferView &jointview = model.bufferViews[jointaccess.bufferView];
-			bufferjoints = reinterpret_cast<const uint16_t *>(&(model.buffers[jointview.buffer].data[jointaccess.byteOffset + jointview.byteOffset]));
+			bufferjoints = reinterpret_cast<const uint32_t *>(&(model.buffers[jointview.buffer].data[jointaccess.byteOffset + jointview.byteOffset]));
 			jointbytestride = jointaccess.ByteStride(jointview) ? (jointaccess.ByteStride(jointview) / sizeof(bufferjoints[0])) : tinygltfsize(TINYGLTF_TYPE_VEC4);
 		}
 
@@ -265,7 +266,7 @@ void gltf::Model::load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &
 	}
 }
 
-void gltf::Model::load_node(gltf::node_t *parent, const tinygltf::Node &node, uint32_t nodeindex, const tinygltf::Model &model, std::vector<uint32_t> &indexbuffer, std::vector<vertex> &vertexbuffer)
+void gltf::Model::load_node(gltf::node_t *parent, const tinygltf::Node &node, uint32_t nodeindex, const tinygltf::Model &model, std::vector<unsigned short> &indexbuffer, std::vector<vertex> &vertexbuffer)
 {
 	gltf::node_t *newnode = new gltf::node_t{};
 	newnode->index = nodeindex;
@@ -508,7 +509,7 @@ void gltf::Model::importf(std::string fpath)
 
 	bool ret = binary ? loader.LoadBinaryFromFile(&model, &err, &warn, fpath.c_str()) : loader.LoadASCIIFromFile(&model, &err, &warn, fpath.c_str());
 
-	std::vector<uint32_t> indexbuffer;
+	std::vector<unsigned short> indexbuffer;
 	std::vector<vertex> vertexbuffer;
 
 	if (!warn.empty()) { printf("Warn: %s\n", warn.c_str()); }
@@ -623,7 +624,8 @@ void gltf::Model::display(Shader *shader, float scale)
 				if (prim->indexed == false) {
 					glDrawArrays(GL_TRIANGLES, prim->firstvertex, prim->vertexcount);
 				} else {
-					glDrawElementsBaseVertex(GL_TRIANGLES, prim->indexcount, GL_UNSIGNED_INT, (GLvoid *)((prim->firstindex)*sizeof(GL_UNSIGNED_INT)), prim->firstvertex);
+					//glDrawElementsBaseVertex(GL_TRIANGLES, prim->indexcount, GL_UNSIGNED_INT, (GLvoid *)((prim->firstindex)*sizeof(GL_UNSIGNED_INT)), prim->firstvertex);
+					glDrawElementsBaseVertex(GL_TRIANGLES, prim->indexcount, GL_UNSIGNED_SHORT, (GLvoid *)((prim->firstindex)*sizeof(unsigned short)), prim->firstvertex);
 				/* TODO use primitive restart */
 				}
 			}

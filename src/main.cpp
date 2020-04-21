@@ -146,9 +146,9 @@ void run_terraingen(SDL_Window *window)
 	Skybox skybox = init_skybox();
 
 	Terrain terrain { 64, 32.f, 256.f };
-	terrain.genheightmap(1024, 0.01);
-	terrain.gennormalmap();
-	terrain.genocclusmap();
+	//terrain.genheightmap(1024, 0.01);
+	//terrain.gennormalmap();
+	//terrain.genocclusmap();
 
 /*
 	Grass grass { 
@@ -160,6 +160,7 @@ void run_terraingen(SDL_Window *window)
 
 	gltf::Model model;
 	//model.importf("media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb");
+	//model.importf("media/models/samples/khronos/Duck/glTF-Binary/Duck.glb");
 	//
 	model.importf("media/models/dragon.glb");
 
@@ -191,11 +192,13 @@ void run_terraingen(SDL_Window *window)
 		undergrowth.uniform_mat4("view", view);
 		sky.uniform_mat4("view", view);
 
+/*
 		terra.bind();
 		terra.uniform_float("amplitude", terrain.amplitude);
 		terra.uniform_float("mapscale", 1.f / terrain.sidelength);
 		terra.uniform_vec3("camerapos", cam.eye);
 		terrain.display();
+*/
 
 		base.bind();
 		model.display(&base, 1.f);

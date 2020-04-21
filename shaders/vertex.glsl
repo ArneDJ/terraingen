@@ -8,6 +8,7 @@ uniform mat4 project, view, model;
 
 out VERTEX {
 	vec3 position;
+	vec3 normal;
 	vec2 texcoord;
 } vertex;
 
@@ -16,6 +17,7 @@ void main(void)
 	vec4 worldpos = model * vec4(position, 1.0);
 
 	vertex.position = worldpos.xyz;
+	vertex.normal = normal;
 	vertex.texcoord = texcoord;
 
 	gl_Position = project * view * worldpos;

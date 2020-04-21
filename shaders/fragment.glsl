@@ -6,6 +6,7 @@ out vec4 fcolor;
 
 in VERTEX {
 	vec3 position;
+	vec3 normal;
 	vec2 texcoord;
 } fragment;
 

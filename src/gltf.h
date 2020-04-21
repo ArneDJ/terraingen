@@ -164,10 +164,10 @@ private:
 private:
 	void load_textures(tinygltf::Model &gltfmodel);
 	void load_materials(tinygltf::Model &gltfmodel);
-	void load_node(gltf::node_t *parent, const tinygltf::Node &node, uint32_t nodeIndex, const tinygltf::Model &model, std::vector<uint32_t> &indexBuffer, std::vector<vertex> &vertexBuffer);
+	void load_node(gltf::node_t *parent, const tinygltf::Node &node, uint32_t nodeIndex, const tinygltf::Model &model, std::vector<unsigned short> &indexBuffer, std::vector<vertex> &vertexBuffer);
 	void load_animations(tinygltf::Model &gltfModel);
 	void load_skins(tinygltf::Model &gltfModel);
-	void load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &mesh, gltf::mesh_t *newmesh, std::vector<uint32_t> &indexbuffer, std::vector<vertex> &vertexbuffer);
+	void load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &mesh, gltf::mesh_t *newmesh, std::vector<unsigned short> &indexbuffer, std::vector<vertex> &vertexbuffer);
 private:
 	node_t *findnode(node_t *parent, uint32_t index) {
 		node_t* found = nullptr;
