@@ -10,6 +10,10 @@ public:
 	float amplitude;
 	size_t sidelength;
 	float mapratio; // ratio terrain mesh size / heightmap resolution
+	GLuint heightmap;
+	GLuint normalmap;
+	GLuint occlusmap;
+	GLuint detailmap;
 public:
 	Terrain(size_t sidelen, float patchoffst, float amp);
 	~Terrain(void);
@@ -20,10 +24,6 @@ public:
 	float sampleheight(float x, float z) const;
 	float sampleslope(float x, float z) const;
 private:
-	GLuint heightmap;
-	GLuint normalmap;
-	GLuint occlusmap;
-	GLuint detailmap;
 	struct rawimage heightimage;
 	struct rawimage normalimage;
 	struct rawimage occlusimage;
@@ -33,12 +33,18 @@ private:
 
 class Grass {
 public:
-	Grass(const Terrain *ter, size_t density, GLuint texturebind);
+	Grass(const Terrain *ter, size_t density, GLuint texturebind, GLuint norm, GLuint occlus);
+	~Grass(void) 
+	{
+		delete_mesh(&quads);
+	}
 	void display(void) const;
 private:
 	size_t instancecount;
 	struct mesh quads;
 	GLuint texture;
+	GLuint normalmap;
+	GLuint occlusmap;
 };
 
 class Skybox {

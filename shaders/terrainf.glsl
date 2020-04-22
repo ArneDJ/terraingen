@@ -131,7 +131,7 @@ void main(void)
 	material mat = material(
 		texture(grassmap, 0.1*fragment.texcoord).rgb,
 		texture(dirtmap, 0.1*fragment.texcoord).rgb,
-		texture(stonemap, 0.03*fragment.texcoord).rgb,
+		texture(stonemap, 0.03*fragment.texcoord).rgb * vec3(0.7, 0.7, 0.7),
 		texture(snowmap, 0.05*fragment.texcoord).rgb
 	);
 

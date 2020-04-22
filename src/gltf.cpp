@@ -22,25 +22,27 @@
 #include "shader.h"
 #include "gltf.h"
 
-static GLuint bind_VAO(std::vector<uint16_t> &indexbuffer, std::vector<vertex> &vertexbuffer)
+static struct bufferobject bind_buffers(std::vector<uint16_t> &indexbuffer, std::vector<vertex> &vertexbuffer)
 {
 	// https://www.khronos.org/opengl/wiki/Buffer_Object
 	// In some cases, data stored in a buffer object will not be changed once it is uploaded. For example, vertex data can be static: set once and used many times.
 	// For these cases, you set flags​ to 0 and use data​ as the initial upload. From then on, you simply use the data in the buffer. This requires that you have assembled all of the static data up-front.
 	const GLbitfield flags = 0;
 
-	GLuint VAO;
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
+	struct bufferobject binding{0};
 
-	GLuint EBO;
-	glGenBuffers(1, &EBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	//GLuint VAO;
+	glGenVertexArrays(1, &binding.VAO);
+	glBindVertexArray(binding.VAO);
+
+	//GLuint EBO;
+	glGenBuffers(1, &binding.EBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, binding.EBO);
 	glBufferStorage(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16_t)*indexbuffer.size(), indexbuffer.data(), flags);
 
-	GLuint VBO;
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	//GLuint VBO;
+	glGenBuffers(1, &binding.VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, binding.VBO);
 	glBufferStorage(GL_ARRAY_BUFFER, sizeof(vertex)*vertexbuffer.size(), vertexbuffer.data(), flags);
 
 	// positions
@@ -59,18 +61,20 @@ static GLuint bind_VAO(std::vector<uint16_t> &indexbuffer, std::vector<vertex> &
 	glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(vertex), BUFFER_OFFSET(offsetof(vertex, weights)));
 	glEnableVertexAttribArray(4);
 
-	return VAO;
+	//return VAO;
+	return binding;
 }
 
 static GLuint load_gltf_image(tinygltf::Image &gltfimage)
 {
 	GLuint texture;
 
-	struct rawimage image;
-	image.nchannels = gltfimage.component;
-	image.width = gltfimage.width;
-	image.height = gltfimage.height;
-	image.data = &gltfimage.image[0];
+	struct rawimage image {
+		.data = &gltfimage.image[0],
+		.nchannels = (unsigned int)gltfimage.component,
+		.width = size_t(gltfimage.width),
+		.height = size_t(gltfimage.height)
+	};
 
 	GLenum format = GL_RGBA;
 	GLenum internalformat = GL_RGB5_A1;
@@ -277,7 +281,7 @@ void gltf::Model::load_node(gltf::node_t *parent, const tinygltf::Node &node, ui
 		nodes.push_back(newnode);
 	}
 
-	linearNodes.push_back(newnode);
+	linearnodes.push_back(newnode);
 }
 
 void gltf::Model::load_animations(tinygltf::Model &gltfModel)
@@ -480,12 +484,13 @@ void gltf::Model::importf(std::string fpath)
 		load_node(nullptr, node, scene.nodes[i], model, indexbuffer, vertexbuffer);
 	}
 
-	VAO = bind_VAO(indexbuffer, vertexbuffer);
+	//VAO = bind_VAO(indexbuffer, vertexbuffer);
+	bufferbind = bind_buffers(indexbuffer, vertexbuffer);
 
 	if (model.animations.size() > 0) { load_animations(model); }
 	load_skins(model);
 
-	for (auto node : linearNodes) {
+	for (auto node : linearnodes) {
 		// Assign skins
 		if (node->skinIndex > -1) { node->skin = skins[node->skinIndex]; }
 		// Initial pose
@@ -553,11 +558,11 @@ void gltf::Model::updateAnimation(uint32_t index, float time)
 
 void gltf::Model::display(Shader *shader, glm::vec3 translation, float scale)
 {
-	glBindVertexArray(VAO);
+	glBindVertexArray(bufferbind.VAO);
 
 	shader->uniform_bool("skinned", !skins.empty());
 
-	for (gltf::node_t *node : linearNodes) {
+	for (gltf::node_t *node : linearnodes) {
 		if (node->mesh) {
 			glm::mat4 m = node->getMatrix();
 			glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(scale));

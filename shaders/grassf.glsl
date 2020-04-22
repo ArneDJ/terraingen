@@ -1,6 +1,5 @@
 #version 430 core
 
-layout(binding = 0) uniform sampler2D heightmap;
 layout(binding = 1) uniform sampler2D normalmap;
 layout(binding = 2) uniform sampler2D occlusmap;
 layout(binding = 4) uniform sampler2D basemap;
@@ -53,8 +52,7 @@ void main(void)
 	vec3 scatteredlight = ambient + lightcolor * diffuse;
 	color.rgb = min(color.rgb * scatteredlight, vec3(1.0));
 
-	float height = texture(heightmap, fragment.position.xz).r;
-	color.rgb = fog(color.rgb, length(viewspace), height);
+	color.rgb = fog(color.rgb, length(viewspace), 0.007 * fragment.position.y);
 
 	float gamma = 1.6;
 	color.rgb = pow(color.rgb, vec3(1.0/gamma));

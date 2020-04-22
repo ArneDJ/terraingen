@@ -226,7 +226,6 @@ GLuint bind_mipmap_texture(struct rawimage *image, GLenum internalformat, GLenum
 	return texture;
 }
 
-
 void activate_texture(GLenum unit, GLenum target, GLuint texture)
 {
 	glActiveTexture(unit);

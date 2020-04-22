@@ -1,6 +1,6 @@
 #pragma once
 
-#include "external/stbimage/tiny_gltf.h"
+#include "external/tinygltf/tiny_gltf.h"
 
 #define MAX_NUM_JOINTS 128u
 
@@ -10,6 +10,12 @@ struct vertex {
 	glm::vec2 uv;
 	glm::ivec4 joints;
 	glm::vec4 weights;
+};
+
+struct bufferobject {
+	GLuint VAO;
+	GLuint VBO;
+	GLuint EBO;
 };
 
 namespace gltf {
@@ -141,13 +147,24 @@ public:
 	{
 		importf(fpath);
 	}
+	~Model(void) 
+	{
+		for (GLuint &texture : textures) {
+			if (glIsTexture(texture) == GL_TRUE) { 
+				glDeleteTextures(1, &texture); 
+			}
+		}
+		glDeleteBuffers(1, &bufferbind.EBO);
+		glDeleteBuffers(1, &bufferbind.VBO);
+		glDeleteVertexArrays(1, &bufferbind.VAO);
+	}
 	void updateAnimation(uint32_t index, float time);
 	void display(Shader *shader, glm::vec3 translation, float scale);
 	std::vector<animation_t> animations;
 private:
-	GLuint VAO = 0;
+	struct bufferobject bufferbind;
 	std::vector<node_t*> nodes;
-	std::vector<node_t*> linearNodes;
+	std::vector<node_t*> linearnodes;
 	std::vector<skin_t*> skins;
 	std::vector<GLuint> textures;
 	std::vector<material_t> materials;

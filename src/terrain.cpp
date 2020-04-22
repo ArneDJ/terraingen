@@ -102,7 +102,7 @@ float Terrain::sampleslope(float x, float z) const
 	return 1.f - ((slope * 2.f) - 1.f);
 }
 
-Grass::Grass(const Terrain *ter, size_t density, GLuint texturebind)
+Grass::Grass(const Terrain *ter, size_t density, GLuint texturebind, GLuint norm, GLuint occlus)
 {
 	const float invratio = 1.f / ter->mapratio;
 	const float minpos = 0.25f * (invratio * ter->sidelength); // max grass position
@@ -110,6 +110,8 @@ Grass::Grass(const Terrain *ter, size_t density, GLuint texturebind)
 
 	quads = gen_cardinal_quads();
 	texture = texturebind;
+	normalmap = norm;
+	occlusmap = occlus;
 
 	std::random_device rd;
 	std::mt19937 gen(rd());
@@ -138,6 +140,8 @@ Grass::Grass(const Terrain *ter, size_t density, GLuint texturebind)
 void Grass::display(void) const
 {
 	glDisable(GL_CULL_FACE);
+	activate_texture(GL_TEXTURE1, GL_TEXTURE_2D, normalmap);
+	activate_texture(GL_TEXTURE2, GL_TEXTURE_2D, occlusmap);
 	activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, texture);
 	glBindVertexArray(quads.VAO);
 	glDrawElementsInstanced(quads.mode, quads.ecount, GL_UNSIGNED_SHORT, NULL, instancecount);
