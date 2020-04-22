@@ -17,14 +17,11 @@ namespace gltf {
 struct node_t;
 
 struct material_t {
-	float metallicf = 1.0f;
-	float roughnessf = 1.0f;
 	glm::vec4 basecolor = glm::vec4(0.0f);
 	GLuint basecolormap = 0;
 	GLuint metalroughmap = 0;
 	GLuint normalmap = 0;
 	GLuint occlusionmap = 0;
-	GLuint emissivemap = 0;
 };
 
 struct primitive_t {
@@ -34,14 +31,6 @@ struct primitive_t {
 	uint32_t vertexcount;
 	bool indexed;
 	material_t &material;
-
-	primitive_t(uint32_t frstindex, uint32_t indexcnt, uint32_t frstvert, uint32_t vertcnt, material_t &material) : material(material) {
-		firstindex = frstindex;
-		indexcount = indexcnt;
-		firstvertex = frstvert;
-		vertexcount = vertcnt;
-		indexed = indexcnt > 0;
-	};
 };
 
 struct animchannel_t {
@@ -70,9 +59,9 @@ struct mesh_t {
 	std::vector<primitive_t*> primitives;
 
 	struct uniformblock {
-	glm::mat4 matrix;
-	glm::mat4 jointMatrix[MAX_NUM_JOINTS]{};
-	float jointcount{ 0 };
+		glm::mat4 matrix;
+		glm::mat4 jointMatrix[MAX_NUM_JOINTS]{};
+		float jointcount{ 0 };
 	} uniformblock;
 
 	mesh_t(glm::mat4 matrix) {
@@ -121,16 +110,16 @@ struct node_t {
 		if (mesh) {
 			glm::mat4 m = getMatrix();
 			if (skin) {
-			mesh->uniformblock.matrix = m;
-			glm::mat4 inverseTransform = glm::inverse(m);
-			size_t numJoints = std::min((uint32_t)skin->joints.size(), MAX_NUM_JOINTS);
-			for (size_t i = 0; i < numJoints; i++) {
-			gltf::node_t *jointNode = skin->joints[i];
-			glm::mat4 jointMat = jointNode->getMatrix() * skin->inversebinds[i];
-			jointMat = inverseTransform * jointMat;
-			mesh->uniformblock.jointMatrix[i] = jointMat;
-			}
-			mesh->uniformblock.jointcount = (float)numJoints;
+				mesh->uniformblock.matrix = m;
+				glm::mat4 inverseTransform = glm::inverse(m);
+				size_t numJoints = std::min((uint32_t)skin->joints.size(), MAX_NUM_JOINTS);
+				for (size_t i = 0; i < numJoints; i++) {
+					gltf::node_t *jointNode = skin->joints[i];
+					glm::mat4 jointMat = jointNode->getMatrix() * skin->inversebinds[i];
+					jointMat = inverseTransform * jointMat;
+					mesh->uniformblock.jointMatrix[i] = jointMat;
+				}
+				mesh->uniformblock.jointcount = (float)numJoints;
 			}
 		}
 
@@ -140,9 +129,7 @@ struct node_t {
 	}
 
 	~node_t() {
-		if (mesh) {
-			delete mesh;
-		}
+		if (mesh) { delete mesh; }
 		for (auto &child : children) { delete child; }
 	}
 
@@ -150,9 +137,12 @@ struct node_t {
 
 class Model {
 public:
-	void importf(std::string fpath);
+	Model(std::string fpath) 
+	{
+		importf(fpath);
+	}
 	void updateAnimation(uint32_t index, float time);
-	void display(Shader *shader, float scale);
+	void display(Shader *shader, glm::vec3 translation, float scale);
 	std::vector<animation_t> animations;
 private:
 	GLuint VAO = 0;
@@ -162,14 +152,16 @@ private:
 	std::vector<GLuint> textures;
 	std::vector<material_t> materials;
 private:
+	void importf(std::string fpath);
 	void load_textures(tinygltf::Model &gltfmodel);
 	void load_materials(tinygltf::Model &gltfmodel);
-	void load_node(gltf::node_t *parent, const tinygltf::Node &node, uint32_t nodeIndex, const tinygltf::Model &model, std::vector<unsigned short> &indexBuffer, std::vector<vertex> &vertexBuffer);
+	void load_node(gltf::node_t *parent, const tinygltf::Node &node, uint32_t nodeindex, const tinygltf::Model &model, std::vector<uint16_t> &indexBuffer, std::vector<vertex> &vertexBuffer);
 	void load_animations(tinygltf::Model &gltfModel);
 	void load_skins(tinygltf::Model &gltfModel);
-	void load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &mesh, gltf::mesh_t *newmesh, std::vector<unsigned short> &indexbuffer, std::vector<vertex> &vertexbuffer);
+	void load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &mesh, gltf::mesh_t *newmesh, std::vector<uint16_t> &indexbuffer, std::vector<vertex> &vertexbuffer);
 private:
-	node_t *findnode(node_t *parent, uint32_t index) {
+	node_t *findnode(node_t *parent, uint32_t index) 
+	{
 		node_t* found = nullptr;
 		if (parent->index == index) { return parent; }
 		for (auto &child : parent->children) {
@@ -179,7 +171,8 @@ private:
 		return found;
 	}
 
-	node_t *nodefrom(uint32_t index) {
+	node_t *nodefrom(uint32_t index) 
+	{
 		node_t *found = nullptr;
 		for (auto &node : nodes) {
 			found = findnode(node, index);

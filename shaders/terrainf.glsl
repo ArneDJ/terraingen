@@ -107,23 +107,6 @@ vec3 fog(vec3 c, float dist, float height)
 	return c * extinction + fogcolor * (1.0 - inscattering);
 }
 
-// this can have a performance impact
-vec3 tri_planar_texture(vec3 wnorm, sampler2D samp, vec3 fragpos)
-{
-	vec3 blending = abs(wnorm);
-	blending = normalize(max(blending, 0.00001)); // Force weights to sum to 1.0
-	float b = (blending.x + blending.y + blending.z);
-	blending /= vec3(b, b, b);
-
-	vec4 xaxis = texture2D(samp, fragpos.yz);
-	vec4 yaxis = texture2D(samp, fragpos.xz);
-	vec4 zaxis = texture2D(samp, fragpos.xy);
-	// blend the results of the 3 planar projections.
-	vec4 tex = xaxis * blending.x + xaxis * blending.y + zaxis * blending.z;
-
-	return tex.xyz;
-}
-
 void main(void)
 {
 	const vec3 lightdirection = vec3(0.5, 0.5, 0.5);
@@ -141,16 +124,14 @@ void main(void)
 
 	vec3 detail = texture(detailmap, fragment.texcoord*0.02).rgb;
 	detail  = (detail * 2.0) - 1.0;
-	float detaily = detail.y;
-	detail.y = detail.z;
-	detail.z = detaily;
+	detail = vec3(detail.x, detail.z, detail.y);
 
 	normal = normalize((slope * detail) + normal);
 
 	material mat = material(
 		texture(grassmap, 0.1*fragment.texcoord).rgb,
 		texture(dirtmap, 0.1*fragment.texcoord).rgb,
-		tri_planar_texture(normal, stonemap, 0.03*fragment.position) * vec3(0.8, 0.8, 0.8),
+		texture(stonemap, 0.03*fragment.texcoord).rgb,
 		texture(snowmap, 0.05*fragment.texcoord).rgb
 	);
 

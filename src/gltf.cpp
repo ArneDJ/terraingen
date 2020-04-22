@@ -22,9 +22,7 @@
 #include "shader.h"
 #include "gltf.h"
 
-#define BUFFER_OFFSET(i) ((char *)NULL + (i))
-
-static GLuint bind_VAO(std::vector<unsigned short> &indexbuffer, std::vector<vertex> &vertexbuffer)
+static GLuint bind_VAO(std::vector<uint16_t> &indexbuffer, std::vector<vertex> &vertexbuffer)
 {
 	// https://www.khronos.org/opengl/wiki/Buffer_Object
 	// In some cases, data stored in a buffer object will not be changed once it is uploaded. For example, vertex data can be static: set once and used many times.
@@ -38,7 +36,7 @@ static GLuint bind_VAO(std::vector<unsigned short> &indexbuffer, std::vector<ver
 	GLuint EBO;
 	glGenBuffers(1, &EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferStorage(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short)*indexbuffer.size(), indexbuffer.data(), flags);
+	glBufferStorage(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16_t)*indexbuffer.size(), indexbuffer.data(), flags);
 
 	GLuint VBO;
 	glGenBuffers(1, &VBO);
@@ -64,30 +62,6 @@ static GLuint bind_VAO(std::vector<unsigned short> &indexbuffer, std::vector<ver
 	return VAO;
 }
 
-// generate mip mapped texture
-static GLuint gen_texture(struct rawimage *image, GLenum internalformat, GLenum format, GLenum type)
-{
-	GLuint texture;
-
-	GLsizei NUM_MIPMAPS = 6;
-
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexStorage2D(GL_TEXTURE_2D, NUM_MIPMAPS, internalformat, image->width, image->height);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, image->width, image->height, format, type, image->data);
-
-	glGenerateMipmap(GL_TEXTURE_2D);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	return texture;
-}
-
 static GLuint load_gltf_image(tinygltf::Image &gltfimage)
 {
 	GLuint texture;
@@ -101,44 +75,13 @@ static GLuint load_gltf_image(tinygltf::Image &gltfimage)
 	GLenum format = GL_RGBA;
 	GLenum internalformat = GL_RGB5_A1;
 
-	if (gltfimage.component == 1) {
-		format = GL_RED;
-	} else if (gltfimage.component == 2) {
-		format = GL_RG;
-	} else if (gltfimage.component == 3) {
-		format = GL_RGB;
-	}
-
-	//texture = bind_texture(&image, internalformat, format, GL_UNSIGNED_BYTE);
-	texture = gen_texture(&image, internalformat, format, GL_UNSIGNED_BYTE);
+	texture = bind_mipmap_texture(&image, internalformat, format, GL_UNSIGNED_BYTE);
 
 	return texture;
 }
 
-static inline int32_t tinygltfsize(uint32_t ty) 
-{
-	if (ty == TINYGLTF_TYPE_SCALAR) {
-		return 1;
-	} else if (ty == TINYGLTF_TYPE_VEC2) {
-		return 2;
-	} else if (ty == TINYGLTF_TYPE_VEC3) {
-		return 3;
-	} else if (ty == TINYGLTF_TYPE_VEC4) {
-		return 4;
-	} else if (ty == TINYGLTF_TYPE_MAT2) {
-		return 4;
-	} else if (ty == TINYGLTF_TYPE_MAT3) {
-		return 9;
-	} else if (ty == TINYGLTF_TYPE_MAT4) {
-		return 16;
-	} else {
-		// Unknown componenty type
-		return -1;
-	}
-}
-
 // fills an index buffer and returns the index count
-static uint32_t load_indices(const tinygltf::Model &model, const tinygltf::Primitive &primitive, std::vector<unsigned short> &indexbuffer)
+static uint32_t load_indices(const tinygltf::Model &model, const tinygltf::Primitive &primitive, std::vector<uint16_t> &indexbuffer)
 {
 	uint32_t indexcount = 0;
 
@@ -151,10 +94,7 @@ static uint32_t load_indices(const tinygltf::Model &model, const tinygltf::Primi
 
 	switch (accessor.componentType) {
 	case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
-		const uint32_t *buf = static_cast<const uint32_t*>(data);
-		for (size_t index = 0; index < accessor.count; index++) {
-			indexbuffer.push_back(buf[index]);
-		}
+		std::cerr << "error: UNSIGNED_INT indices not supported\n";
 		break;
 	}
 	case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
@@ -178,7 +118,21 @@ static uint32_t load_indices(const tinygltf::Model &model, const tinygltf::Primi
 	return indexcount;
 }
 
-void gltf::Model::load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &mesh, gltf::mesh_t *newmesh, std::vector<unsigned short> &indexbuffer, std::vector<vertex> &vertexbuffer)
+static void draw_primitives(const gltf::primitive_t *prim)
+{
+	activate_texture(GL_TEXTURE0, GL_TEXTURE_2D, prim->material.basecolormap);
+	activate_texture(GL_TEXTURE1, GL_TEXTURE_2D, prim->material.metalroughmap);
+	activate_texture(GL_TEXTURE2, GL_TEXTURE_2D, prim->material.normalmap);
+
+	if (prim->indexed == false) {
+		glDrawArrays(GL_TRIANGLES, prim->firstvertex, prim->vertexcount);
+	} else {
+		glDrawElementsBaseVertex(GL_TRIANGLES, prim->indexcount, GL_UNSIGNED_SHORT, (GLvoid *)((prim->firstindex)*sizeof(uint16_t)), prim->firstvertex);
+	/* TODO use primitive restart */
+	}
+}
+
+void gltf::Model::load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &mesh, gltf::mesh_t *newmesh, std::vector<uint16_t> &indexbuffer, std::vector<vertex> &vertexbuffer)
 {
 	for (size_t j = 0; j < mesh.primitives.size(); j++) {
 		const tinygltf::Primitive &primitive = mesh.primitives[j];
@@ -260,13 +214,20 @@ void gltf::Model::load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &
 			vertexbuffer.push_back(vert);
 		}
 
-		gltf::primitive_t *newPrimitive = new struct primitive_t(indexstart, indexcount, vertexstart, vertexcount, primitive.material > -1 ? materials[primitive.material] : materials.back());
+		struct gltf::primitive_t *newprimitive = new gltf::primitive_t {
+			.firstindex = indexstart,
+			.indexcount = indexcount,
+			.firstvertex = vertexstart,
+			.vertexcount = vertexcount,
+			.indexed = indexcount > 0,
+			.material = primitive.material > -1 ? materials[primitive.material] : materials.back(),
+		};
 
-		newmesh->primitives.push_back(newPrimitive);
+		newmesh->primitives.push_back(newprimitive);
 	}
 }
 
-void gltf::Model::load_node(gltf::node_t *parent, const tinygltf::Node &node, uint32_t nodeindex, const tinygltf::Model &model, std::vector<unsigned short> &indexbuffer, std::vector<vertex> &vertexbuffer)
+void gltf::Model::load_node(gltf::node_t *parent, const tinygltf::Node &node, uint32_t nodeindex, const tinygltf::Model &model, std::vector<uint16_t> &indexbuffer, std::vector<vertex> &vertexbuffer)
 {
 	gltf::node_t *newnode = new gltf::node_t{};
 	newnode->index = nodeindex;
@@ -466,20 +427,11 @@ void gltf::Model::load_materials(tinygltf::Model &gltfmodel)
 		if (mat.values.find("metallicRoughnessTexture") != mat.values.end()) {
 			material.metalroughmap = textures[mat.values["metallicRoughnessTexture"].TextureIndex()];
 		}
-		if (mat.values.find("roughnessFactor") != mat.values.end()) {
-			material.roughnessf = static_cast<float>(mat.values["roughnessFactor"].Factor());
-		}
-		if (mat.values.find("metallicFactor") != mat.values.end()) {
-			material.metallicf = static_cast<float>(mat.values["metallicFactor"].Factor());
-		}
 		if (mat.values.find("baseColorFactor") != mat.values.end()) {
 			material.basecolor = glm::make_vec4(mat.values["baseColorFactor"].ColorFactor().data());
 		}
 		if (mat.additionalValues.find("normalTexture") != mat.additionalValues.end()) {
 			material.normalmap = textures[mat.additionalValues["normalTexture"].TextureIndex()];
-		}
-		if (mat.additionalValues.find("emissiveTexture") != mat.additionalValues.end()) {
-			material.emissivemap = textures[mat.additionalValues["emissiveTexture"].TextureIndex()];
 		}
 		if (mat.additionalValues.find("occlusionTexture") != mat.additionalValues.end()) {
 			material.occlusionmap = textures[mat.additionalValues["occlusionTexture"].TextureIndex()];
@@ -509,7 +461,7 @@ void gltf::Model::importf(std::string fpath)
 
 	bool ret = binary ? loader.LoadBinaryFromFile(&model, &err, &warn, fpath.c_str()) : loader.LoadASCIIFromFile(&model, &err, &warn, fpath.c_str());
 
-	std::vector<unsigned short> indexbuffer;
+	std::vector<uint16_t> indexbuffer;
 	std::vector<vertex> vertexbuffer;
 
 	if (!warn.empty()) { printf("Warn: %s\n", warn.c_str()); }
@@ -599,7 +551,7 @@ void gltf::Model::updateAnimation(uint32_t index, float time)
 	}
 }
 
-void gltf::Model::display(Shader *shader, float scale)
+void gltf::Model::display(Shader *shader, glm::vec3 translation, float scale)
 {
 	glBindVertexArray(VAO);
 
@@ -609,25 +561,13 @@ void gltf::Model::display(Shader *shader, float scale)
 		if (node->mesh) {
 			glm::mat4 m = node->getMatrix();
 			glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(scale));
-			glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1024.f, 128.f, 1024.f));
+			glm::mat4 T = glm::translate(glm::mat4(1.f), translation);
 			shader->uniform_mat4("model", T * S * m);
 			shader->uniform_array_mat4("u_joint_matrix", node->mesh->uniformblock.jointcount, node->mesh->uniformblock.jointMatrix); 
+
 			for (const gltf::primitive_t *prim : node->mesh->primitives) {
 				shader->uniform_vec3("basedcolor", prim->material.basecolor);
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, prim->material.basecolormap);
-				glActiveTexture(GL_TEXTURE1);
-				glBindTexture(GL_TEXTURE_2D, prim->material.metalroughmap);
-				glActiveTexture(GL_TEXTURE2);
-				glBindTexture(GL_TEXTURE_2D, prim->material.normalmap);
-
-				if (prim->indexed == false) {
-					glDrawArrays(GL_TRIANGLES, prim->firstvertex, prim->vertexcount);
-				} else {
-					//glDrawElementsBaseVertex(GL_TRIANGLES, prim->indexcount, GL_UNSIGNED_INT, (GLvoid *)((prim->firstindex)*sizeof(GL_UNSIGNED_INT)), prim->firstvertex);
-					glDrawElementsBaseVertex(GL_TRIANGLES, prim->indexcount, GL_UNSIGNED_SHORT, (GLvoid *)((prim->firstindex)*sizeof(unsigned short)), prim->firstvertex);
-				/* TODO use primitive restart */
-				}
+				draw_primitives(prim);
 			}
 		}
 	}

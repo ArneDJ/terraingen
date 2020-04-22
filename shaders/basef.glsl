@@ -52,5 +52,5 @@ void main(void)
 
 	float gamma = 2.2;
  	//fcolor.rgb = pow(fcolor.rgb, vec3(1.0/gamma));
- 	fcolor.rgb = fragment.normal;
+ 	//fcolor.rgb = fragment.normal;
 }

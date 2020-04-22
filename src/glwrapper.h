@@ -17,6 +17,8 @@ void delete_mesh(const struct mesh *m);
 
 GLuint bind_texture(const struct rawimage *image, GLenum internalformat, GLenum format, GLenum type);
 
+GLuint bind_mipmap_texture(struct rawimage *image, GLenum internalformat, GLenum format, GLenum type);
+
 void activate_texture(GLenum unit, GLenum target, GLuint texture); 
 
 GLuint load_TGA_cubemap(const char *fpath[6]);
