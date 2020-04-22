@@ -58,6 +58,56 @@ struct mesh gen_patch_grid(const size_t sidelength, const float offset)
 	return patch;
 }
 
+struct mesh gen_quad(void)
+{
+	struct mesh quads {
+		.VAO = 0, .VBO = 0, .EBO = 0,
+		.mode = GL_TRIANGLES,
+		.ecount = 6,
+		.indexed = true
+	};
+
+	const GLfloat positions[] = {
+		1.0, -1.0, 0.0,
+		-1.0, -1.0, 0.0,
+		-1.0, 1.0, 0.0,
+		1.0, 1.0, 0.0,
+	};
+
+	const GLfloat texcoords[] = {
+		1.0, 1.0,
+		0.0, 1.0,
+		0.0, 0.0,
+		1.0, 0.0,
+	};
+
+	const GLushort indices[] = {
+		0, 1, 2,
+		0, 2, 3,
+	};
+
+	glGenVertexArrays(1, &quads.VAO);
+	glBindVertexArray(quads.VAO);
+
+	glGenBuffers(1, &quads.EBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quads.EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+
+	glGenBuffers(1, &quads.VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, quads.VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(positions)+sizeof(texcoords), NULL, GL_STATIC_DRAW);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(positions), positions);
+ 	glBufferSubData(GL_ARRAY_BUFFER, sizeof(positions), sizeof(texcoords), texcoords);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(positions)));
+
+	return quads;
+}
+
 // 3 quads used for grass meshes
 struct mesh gen_cardinal_quads(void)
 {

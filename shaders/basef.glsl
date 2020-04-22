@@ -5,6 +5,9 @@ out vec4 fcolor;
 layout(binding = 0) uniform sampler2D base;
 layout(binding = 1) uniform sampler2D metallicroughness;
 layout(binding = 2) uniform sampler2D normalmap;
+
+layout(binding = 10) uniform sampler2DArray arraymap;
+
 uniform vec3 basedcolor;
 uniform vec3 campos;
 uniform vec3 lightcolor = vec3(300.0, 300.0, 300.0);
@@ -46,7 +49,11 @@ vec3 perturb_normal( vec3 N, vec3 V, vec2 texcoord )
 
 void main(void)
 {
-	vec3 basecolor = texture(base, fragment.texcoord).rgb;
+	int d = 2; // number of layers
+	float layer = 1.0;
+	float actual_layer = max(0, min(d - 1, floor(layer + 0.5)) );
+	//vec3 basecolor = texture(base, fragment.texcoord).rgb;
+	vec3 basecolor = texture(arraymap, vec3(fragment.texcoord, actual_layer)).rgb;
 
 	fcolor = vec4(basecolor+basedcolor, 1.0);
 

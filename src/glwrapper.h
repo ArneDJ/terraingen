@@ -11,6 +11,8 @@ struct mesh gen_patch_grid(const size_t sidelength, const float offset);
 
 struct mesh gen_mapcube(void);
 
+struct mesh gen_quad(void);
+
 struct mesh gen_cardinal_quads(void);
 
 void delete_mesh(const struct mesh *m);

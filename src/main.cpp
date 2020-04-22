@@ -135,6 +135,52 @@ Skybox init_skybox(void)
 	return skybox;
 }
 
+GLuint array_texture(void)
+{
+	GLuint texture = 0;
+
+	GLsizei width = 2;
+	GLsizei height = 2;
+	GLsizei layerCount = 2;
+	GLsizei mipLevelCount = 1;
+
+	// Read you texels here. In the current example, we have 2*2*2 = 8 texels, with each texel being 4 GLubytes.
+	GLubyte texels[32] =
+	{
+	// Texels for first image.
+	0,   0,   0,   255,
+	255, 0,   0,   255,
+	0,   255, 0,   255,
+	0,   0,   255, 255,
+	// Texels for second image.
+	255, 255, 255, 255,
+	255, 255,   0, 255,
+	0,   255, 255, 255,
+	255, 0,   255, 255,
+	};
+
+	glGenTextures(1,&texture);
+	glBindTexture(GL_TEXTURE_2D_ARRAY,texture);
+	// Allocate the storage.
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipLevelCount, GL_RGBA8, width, height, layerCount);
+	// Upload pixel data.
+	// The first 0 refers to the mipmap level (level 0, since there's only 1)
+	// The following 2 zeroes refers to the x and y offsets in case you only want to specify a subrectangle.
+	// The final 0 refers to the layer index offset (we start from index 0 and have 2 levels).
+	// Altogether you can specify a 3D box subset of the overall texture, but only one mip level at a time.
+	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, width, height, layerCount, GL_RGBA, GL_UNSIGNED_BYTE, texels);
+
+	// Always set reasonable texture parameters
+	glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+
+	glBindTexture(GL_TEXTURE_2D_ARRAY,0);
+
+	return texture;
+}
+
 void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -166,6 +212,9 @@ void run_terraingen(SDL_Window *window)
 
 	Camera cam { glm::vec3(1024.f, 128.f, 1024.f) };
 
+	struct mesh quad = gen_quad();
+	GLuint array_tex = array_texture();
+
 	float start = 0.f;
  	float end = 0.f;
 	static float timer = 0.f;
@@ -176,7 +225,7 @@ void run_terraingen(SDL_Window *window)
 		float time = 0.01 * float(SDL_GetTicks());
 		start = 0.001f * SDL_GetTicks();
 		const float delta = start - end;
-		cam.update(0.01f);
+		cam.update(delta);
 
 		timer += delta;
 		if (brainstem.animations.empty() == false) {
@@ -199,9 +248,18 @@ void run_terraingen(SDL_Window *window)
 		terrain.display();
 
 		base.bind();
+		activate_texture(GL_TEXTURE10, GL_TEXTURE_2D_ARRAY, array_tex);
+	base.uniform_mat4("model", glm::translate(glm::mat4(1.f), glm::vec3(1024.f, 128.f, 1024.f)));
+	glDisable(GL_CULL_FACE);
+	glBindVertexArray(quad.VAO);
+	glDrawElements(quad.mode, quad.ecount, GL_UNSIGNED_SHORT, NULL);
+	glEnable(GL_CULL_FACE);
+
+/*
 		model.display(&base, glm::vec3(1024.f, 128.f, 1024.f), 1.f);
 		duck.display(&base, glm::vec3(1024.f, 128.f, 1000.f), 5.f);
 		brainstem.display(&base, glm::vec3(1024.f, 128.f, 976.f), 5.f);
+*/
 
 		sky.bind();
 		skybox.display();
