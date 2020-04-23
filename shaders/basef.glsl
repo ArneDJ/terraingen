@@ -49,11 +49,11 @@ vec3 perturb_normal( vec3 N, vec3 V, vec2 texcoord )
 
 void main(void)
 {
-	int d = 2; // number of layers
-	float layer = 1.0;
-	float actual_layer = max(0, min(d - 1, floor(layer + 0.5)) );
-	//vec3 basecolor = texture(base, fragment.texcoord).rgb;
-	vec3 basecolor = texture(arraymap, vec3(fragment.texcoord, actual_layer)).rgb;
+	//int d = 2; // number of layers
+	//float layer = 1.0;
+	//float actual_layer = max(0, min(d - 1, floor(layer + 0.5)) );
+	vec3 basecolor = texture(base, fragment.texcoord).rgb;
+	//vec3 basecolor = texture(arraymap, vec3(fragment.texcoord, actual_layer)).rgb;
 
 	fcolor = vec4(basecolor+basedcolor, 1.0);
 

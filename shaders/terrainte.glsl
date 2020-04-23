@@ -2,7 +2,11 @@
 
 layout(binding = 0) uniform sampler2D heightmap;
 
+uniform mat4 shadownear;
+uniform mat4 shadowmiddle;
+uniform mat4 shadowfar;
 uniform mat4 view, project;
+uniform mat4 projectview;
 uniform float amplitude;
 uniform float mapscale;
 
@@ -11,6 +15,8 @@ layout(quads, fractional_even_spacing, ccw) in;
 out TESSEVAL {
 	vec3 position;
 	vec2 texcoord;
+	vec4 shadowcoord[3];
+ float zclipspace;
 } tesseval;
 
 void main(void)
@@ -24,6 +30,12 @@ void main(void)
 
 	tesseval.position = pos.xyz;
 	tesseval.texcoord = pos.xz;
+	tesseval.shadowcoord[0] = shadownear * pos;
+ tesseval.shadowcoord[1] = shadowmiddle * pos;
+ tesseval.shadowcoord[2] = shadowfar * pos;
+
 
 	gl_Position = project * view * pos;
+	//gl_Position = projectview * pos;
+	tesseval.zclipspace = gl_Position.z;
 }

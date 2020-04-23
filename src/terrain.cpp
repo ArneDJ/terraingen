@@ -81,9 +81,9 @@ void Terrain::display(void) const
 	activate_texture(GL_TEXTURE2, GL_TEXTURE_2D, occlusmap);
 	activate_texture(GL_TEXTURE3, GL_TEXTURE_2D, detailmap);
 	activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, tersurface.grass);
-	activate_texture(GL_TEXTURE5, GL_TEXTURE_2D, tersurface.dirt);
-	activate_texture(GL_TEXTURE6, GL_TEXTURE_2D, tersurface.stone);
-	activate_texture(GL_TEXTURE7, GL_TEXTURE_2D, tersurface.snow);
+	//activate_texture(GL_TEXTURE5, GL_TEXTURE_2D, tersurface.dirt);
+	//activate_texture(GL_TEXTURE6, GL_TEXTURE_2D, tersurface.stone);
+	//activate_texture(GL_TEXTURE7, GL_TEXTURE_2D, tersurface.snow);
 
 //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glPatchParameteri(GL_PATCH_VERTICES, 4);

@@ -18,12 +18,13 @@
 #include "camera.h"
 #include "terrain.h"
 #include "gltf.h"
+#include "shadow.h"
 
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
 #define FOV 90.f
 #define NEAR_CLIP 0.1f
-#define FAR_CLIP 1000.f
+#define FAR_CLIP 800.f
 
 #define GRASS_AMOUNT 500000
 #define FOG_DENSITY 0.025f
@@ -118,6 +119,19 @@ Shader skybox_shader(void)
 	return shader;
 }
 
+Shader shadow_shader(void)
+{
+ struct shaderinfo pipeline[] = {
+  {GL_VERTEX_SHADER, "shaders/shadowmapv.glsl"},
+  {GL_FRAGMENT_SHADER, "shaders/shadowmapf.glsl"},
+  {GL_NONE, NULL}
+ };
+
+ Shader shader(pipeline);
+
+ return shader;
+}
+
 Skybox init_skybox(void)
 {
 	const char *CUBEMAP_TEXTURES[6] = {
@@ -190,13 +204,16 @@ void run_terraingen(SDL_Window *window)
 	Shader terra = terrain_shader();
 	Shader sky = skybox_shader();
 
+	Shader shadow = shadow_shader();
+
 	Skybox skybox = init_skybox();
 
-	Terrain terrain { 64, 32.f, 256.f };
+	Terrain terrain { 64, 32.f, 16.f };
 	terrain.genheightmap(1024, 0.01);
 	terrain.gennormalmap();
 	terrain.genocclusmap();
 
+/*
 	Grass grass { 
 		&terrain,
 		GRASS_AMOUNT,
@@ -204,16 +221,26 @@ void run_terraingen(SDL_Window *window)
 		terrain.normalmap,
 		terrain.occlusmap
 	};
+*/
 
 	gltf::Model model { "media/models/dragon.glb" };
 	gltf::Model duck { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
 
 	gltf::Model brainstem { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
 
-	Camera cam { glm::vec3(1024.f, 128.f, 1024.f) };
+	Camera cam { glm::vec3(0.f, 16.f, 0.f) };
 
 	struct mesh quad = gen_quad();
 	GLuint array_tex = array_texture();
+
+	const glm::vec3 light_position = glm::normalize(glm::vec3(0.2f, 0.5f, 0.5f));
+	const glm::mat4 lightview = glm::lookAt(light_position, glm::vec3(0.0f), glm::vec3(0.f, 1.f, 0.f));
+	Shadow cascaded { lightview, NEAR_CLIP, FAR_CLIP };
+	glm::vec3 split(FAR_CLIP*0.1f, FAR_CLIP*0.4f, FAR_CLIP);
+ 	terra.uniform_vec3("split", split);
+
+	const float aspect = (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT;
+
 
 	float start = 0.f;
  	float end = 0.f;
@@ -233,7 +260,35 @@ void run_terraingen(SDL_Window *window)
 			brainstem.updateAnimation(0, timer);
 		}
 
+		// Draw from the light's point of view
+  cascaded.update(&cam, FOV, aspect, NEAR_CLIP, FAR_CLIP);
+  cascaded.enable();
+  // SHADOW NEAR
+  cascaded.binddepth(SPLITSECTION_NEAREST);
+  shadow.uniform_mat4("view_projection", cascaded.shadowspace[0]);
+  shadow.uniform_bool("instanced", false);
+		model.display(&shadow, glm::vec3(48.f, 16.f, 60.f), 1.f);
+		duck.display(&shadow, glm::vec3(56.f, 16.f, 40.f), 5.f);
+		brainstem.display(&shadow, glm::vec3(48.f, 16.f, 36.f), 5.f);
+  // SHADOW MIDDLE
+  cascaded.binddepth(SPLITSECTION_MIDDLE);
+  shadow.uniform_mat4("view_projection", cascaded.shadowspace[1]);
+  shadow.uniform_bool("instanced", false);
+		model.display(&shadow, glm::vec3(48.f, 16.f, 60.f), 1.f);
+		duck.display(&shadow, glm::vec3(56.f, 16.f, 40.f), 5.f);
+		brainstem.display(&shadow, glm::vec3(48.f, 16.f, 36.f), 5.f);
+  // SHADOW FAR
+  cascaded.binddepth(SPLITSECTION_FARTHEST);
+  shadow.uniform_mat4("view_projection", cascaded.shadowspace[2]);
+  shadow.uniform_bool("instanced", false);
+		model.display(&shadow, glm::vec3(48.f, 16.f, 60.f), 1.f);
+		duck.display(&shadow, glm::vec3(56.f, 16.f, 40.f), 5.f);
+		brainstem.display(&shadow, glm::vec3(48.f, 16.f, 36.f), 5.f);
+
+  cascaded.disable();
+
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 
 		glm::mat4 view = cam.view();
 		base.uniform_mat4("view", view);
@@ -245,29 +300,25 @@ void run_terraingen(SDL_Window *window)
 		terra.uniform_float("amplitude", terrain.amplitude);
 		terra.uniform_float("mapscale", 1.f / terrain.sidelength);
 		terra.uniform_vec3("camerapos", cam.eye);
+		terra.uniform_mat4("shadownear", cascaded.scalebias * cascaded.shadowspace[0]);
+  terra.uniform_mat4("shadowmiddle", cascaded.scalebias * cascaded.shadowspace[1]);
+  terra.uniform_mat4("shadowfar", cascaded.scalebias * cascaded.shadowspace[2]);
+  cascaded.bindtextures(GL_TEXTURE6, GL_TEXTURE7, GL_TEXTURE8);
 		terrain.display();
 
-		base.bind();
-		activate_texture(GL_TEXTURE10, GL_TEXTURE_2D_ARRAY, array_tex);
-	base.uniform_mat4("model", glm::translate(glm::mat4(1.f), glm::vec3(1024.f, 128.f, 1024.f)));
-	glDisable(GL_CULL_FACE);
-	glBindVertexArray(quad.VAO);
-	glDrawElements(quad.mode, quad.ecount, GL_UNSIGNED_SHORT, NULL);
-	glEnable(GL_CULL_FACE);
-
-/*
-		model.display(&base, glm::vec3(1024.f, 128.f, 1024.f), 1.f);
-		duck.display(&base, glm::vec3(1024.f, 128.f, 1000.f), 5.f);
-		brainstem.display(&base, glm::vec3(1024.f, 128.f, 976.f), 5.f);
-*/
+		model.display(&base, glm::vec3(48.f, 16.f, 60.f), 1.f);
+		duck.display(&base, glm::vec3(56.f, 16.f, 40.f), 5.f);
+		brainstem.display(&base, glm::vec3(48.f, 16.f, 36.f), 5.f);
 
 		sky.bind();
 		skybox.display();
 
+/*
 		undergrowth.bind();
 		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);
 		undergrowth.uniform_vec3("camerapos", cam.eye);
 		grass.display();
+*/
 
 		SDL_GL_SwapWindow(window);
 		end = start;
@@ -294,8 +345,8 @@ int main(int argc, char *argv[])
 
 	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 	glClearColor(0.f, 0.f, 0.f, 1.f);
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
+	//glEnable(GL_CULL_FACE);
+	//glCullFace(GL_BACK);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_PRIMITIVE_RESTART);
 	glPrimitiveRestartIndex(0xFFFF);

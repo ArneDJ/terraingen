@@ -6,19 +6,27 @@ layout(binding = 2) uniform sampler2D occlusmap;
 layout(binding = 3) uniform sampler2D detailmap;
 layout(binding = 4) uniform sampler2D grassmap;
 layout(binding = 5) uniform sampler2D dirtmap;
-layout(binding = 6) uniform sampler2D stonemap;
-layout(binding = 7) uniform sampler2D snowmap;
+//layout(binding = 6) uniform sampler2D stonemap;
+//layout(binding = 7) uniform sampler2D snowmap;
+
+/*TODO replace with array texture*/
+layout(binding = 6) uniform sampler2DShadow shadowmapnear;
+layout(binding = 7) uniform sampler2DShadow shadowmapmiddle;
+layout(binding = 8) uniform sampler2DShadow shadowmapfar;
 
 uniform float mapscale;
 uniform vec3 camerapos;
 uniform vec3 fogcolor;
 uniform float fogfactor;
+uniform vec3 split;
 
 out vec4 fcolor;
 
 in TESSEVAL {
 	vec3 position;
 	vec2 texcoord;
+	vec4 shadowcoord[3];
+ float zclipspace;
 } fragment;
 
 struct material {
@@ -128,19 +136,24 @@ void main(void)
 
 	normal = normalize((slope * detail) + normal);
 
+	/*
 	material mat = material(
 		texture(grassmap, 0.1*fragment.texcoord).rgb,
 		texture(dirtmap, 0.1*fragment.texcoord).rgb,
 		texture(stonemap, 0.03*fragment.texcoord).rgb * vec3(0.7, 0.7, 0.7),
 		texture(snowmap, 0.05*fragment.texcoord).rgb
 	);
+	*/
 
+/*
 	float strata = warpfbm(0.05 * fragment.position.xz);
 
 	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.45, 0.55, height + (0.1*strata)));
 	vec3 rocks = mix(mat.dirt, mat.stone, smoothstep(0.3, 0.4, height));
 	color = mix(color, rocks, smoothstep(0.4, 0.55, slope - (0.5*strata)));
+*/
 
+/*
 	float diffuse = max(0.0, dot(normal, lightdirection));
 
 	vec3 scatteredlight = ambient + lightcolor * diffuse;
@@ -150,8 +163,26 @@ void main(void)
 	color *= occlusion;
 
 	color = fog(color, length(viewspace), height);
+*/
 
-	float gamma = 1.6;
-	color.rgb = pow(color.rgb, vec3(1.0/gamma));
+	//float gamma = 1.6;
+	//color.rgb = pow(color.rgb, vec3(1.0/gamma));
+	vec3 color = texture(grassmap, 0.1*fragment.texcoord).rgb;
+
+	float shadow = 1.0;
+
+ if (fragment.zclipspace <= split.x) {
+ shadow = textureProj(shadowmapnear, fragment.shadowcoord[0]);
+ }
+ else if (fragment.zclipspace <= split.y) {
+ shadow = textureProj(shadowmapmiddle, fragment.shadowcoord[1]);
+ }
+ else if (fragment.zclipspace <= split.z) {
+ shadow = textureProj(shadowmapfar, fragment.shadowcoord[2]);
+ }
+
+ if (shadow < 0.6) { shadow = 0.6; }
+ color.rgb *= shadow;
+
 	fcolor = vec4(color, 1.0);
 }
