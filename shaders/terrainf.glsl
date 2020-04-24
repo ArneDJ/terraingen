@@ -179,6 +179,8 @@ void main(void)
  }
  else if (fragment.zclipspace <= split.z) {
  shadow = textureProj(shadowmapfar, fragment.shadowcoord[2]);
+ } else {
+	 shadow = 1.0;
  }
 
  if (shadow < 0.6) { shadow = 0.6; }
