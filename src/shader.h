@@ -33,6 +33,11 @@ public:
 		glUseProgram(program);
 		glUniformMatrix4fv(glGetUniformLocation(program, name), count, GL_FALSE, glm::value_ptr(matrices[0]));
  	}
+	void uniform_mat4_array(const GLchar *name, std::vector<glm::mat4> matrices) const
+ 	{
+		glUseProgram(program);
+		glUniformMatrix4fv(glGetUniformLocation(program, name), matrices.size(), GL_FALSE, glm::value_ptr(matrices[0]));
+ 	}
 private:
 	GLuint program;
 	GLuint loadshaders(struct shaderinfo *shaders);

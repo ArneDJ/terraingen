@@ -2,9 +2,7 @@
 
 layout(binding = 0) uniform sampler2D heightmap;
 
-uniform mat4 shadownear;
-uniform mat4 shadowmiddle;
-uniform mat4 shadowfar;
+uniform mat4 shadowspace[4];
 uniform mat4 view, project;
 uniform mat4 projectview;
 uniform float amplitude;
@@ -30,10 +28,10 @@ void main(void)
 
 	tesseval.position = pos.xyz;
 	tesseval.texcoord = pos.xz;
-	tesseval.shadowcoord[0] = shadownear * pos;
- tesseval.shadowcoord[1] = shadowmiddle * pos;
- tesseval.shadowcoord[2] = shadowfar * pos;
 
+	for (int i = 0; i < 3; i++) {
+		tesseval.shadowcoord[i] = shadowspace[i] * pos;
+	}
 
 	gl_Position = project * view * pos;
 	//gl_Position = projectview * pos;

@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <iostream>
+#include <vector>
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <glm/vec3.hpp>

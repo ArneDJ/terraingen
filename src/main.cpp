@@ -208,7 +208,7 @@ void run_terraingen(SDL_Window *window)
 
 	Skybox skybox = init_skybox();
 
-	Terrain terrain { 64, 32.f, 32.f };
+	Terrain terrain { 64, 32.f, 64.f };
 	terrain.genheightmap(1024, 0.01);
 	terrain.gennormalmap();
 	terrain.genocclusmap();
@@ -218,7 +218,7 @@ void run_terraingen(SDL_Window *window)
 
 	gltf::Model brainstem { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
 
-	Camera cam { glm::vec3(1024.f, 16.f, 1024.f) };
+	Camera cam { glm::vec3(1024.f, 64.f, 1024.f) };
 
 	struct mesh quad = gen_quad();
 	GLuint array_tex = array_texture();
@@ -251,13 +251,13 @@ void run_terraingen(SDL_Window *window)
 		// Draw from the light's point of view
 cascaded.update(&cam, FOV, aspect, NEAR_CLIP, FAR_CLIP);
 cascaded.enable();
-for (int i = 0; i < 3; i++) {
+for (int i = 0; i < cascaded.cascade_count; i++) {
 	cascaded.binddepth(i);
 	shadow.uniform_mat4("view_projection", cascaded.shadowspace[i]);
 	shadow.uniform_bool("instanced", false);
-	model.display(&shadow, glm::vec3(1024.f, 16.f, 1024.f), 1.f);
-	duck.display(&shadow, glm::vec3(1054.f, 16.f, 1036.f), 5.f);
-	brainstem.display(&shadow, glm::vec3(1024.f, 16.f, 1054.f), 5.f);
+	model.display(&shadow, glm::vec3(1024.f, 32.f, 1024.f), 1.f);
+	duck.display(&shadow, glm::vec3(1054.f, 32.f, 1036.f), 5.f);
+	brainstem.display(&shadow, glm::vec3(1024.f, 32.f, 1054.f), 5.f);
 }
 
 cascaded.disable();
@@ -277,16 +277,19 @@ cascaded.disable();
 		terra.uniform_float("amplitude", terrain.amplitude);
 		terra.uniform_float("mapscale", 1.f / terrain.sidelength);
 		terra.uniform_vec3("camerapos", cam.eye);
-		terra.uniform_mat4("shadownear", cascaded.scalebias * cascaded.shadowspace[0]);
-  terra.uniform_mat4("shadowmiddle", cascaded.scalebias * cascaded.shadowspace[1]);
-  terra.uniform_mat4("shadowfar", cascaded.scalebias * cascaded.shadowspace[2]);
-  //cascaded.bindtextures(GL_TEXTURE6, GL_TEXTURE7, GL_TEXTURE8);
+		std::vector<glm::mat4> shadowspace {
+			cascaded.scalebias * cascaded.shadowspace[0],
+			cascaded.scalebias * cascaded.shadowspace[1],
+			cascaded.scalebias * cascaded.shadowspace[2],
+		};
+		terra.uniform_mat4_array("shadowspace", shadowspace);
+		//terra.uniform_array_mat4("shadowspace", cascaded.cascade_count, cascaded.shadowspace);
   cascaded.bindtextures();
 		terrain.display();
 
-		model.display(&base, glm::vec3(1024.f, 16.f, 1024.f), 1.f);
-		duck.display(&base, glm::vec3(1054.f, 16.f, 1036.f), 5.f);
-		brainstem.display(&base, glm::vec3(1024.f, 16.f, 1054.f), 5.f);
+		model.display(&base, glm::vec3(1024.f, 32.f, 1024.f), 1.f);
+		duck.display(&base, glm::vec3(1054.f, 32.f, 1036.f), 5.f);
+		brainstem.display(&base, glm::vec3(1024.f, 32.f, 1054.f), 5.f);
 
 		sky.bind();
 		skybox.display();

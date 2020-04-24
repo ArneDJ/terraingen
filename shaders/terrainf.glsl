@@ -9,10 +9,7 @@ layout(binding = 5) uniform sampler2D dirtmap;
 //layout(binding = 6) uniform sampler2D stonemap;
 //layout(binding = 7) uniform sampler2D snowmap;
 
-/*TODO replace with array texture*/
-layout(binding = 6) uniform sampler2DArrayShadow shadowmap;
-//layout(binding = 7) uniform sampler2DShadow shadowmapmiddle;
-//layout(binding = 8) uniform sampler2DShadow shadowmapfar;
+layout(binding = 10) uniform sampler2DArrayShadow shadowmap;
 
 uniform float mapscale;
 uniform vec3 camerapos;
@@ -171,20 +168,20 @@ void main(void)
 
 	float shadow = 1.0;
 
- if (fragment.zclipspace <= split.x) {
+ if (fragment.zclipspace < split.x) {
 	 vec4 coords = fragment.shadowcoord[0];
 	  coords.w = coords.z;
 
 	 coords.z = 0.0;
  shadow = texture(shadowmap, coords);
  }
- else if (fragment.zclipspace <= split.y) {
+ else if (fragment.zclipspace < split.y) {
 	 vec4 coords = fragment.shadowcoord[1];
 	  coords.w = coords.z;
 	 coords.z = 1.0;
  shadow = texture(shadowmap, coords);
  }
- else if (fragment.zclipspace <= split.z) {
+ else if (fragment.zclipspace < split.z) {
 	 vec4 coords = fragment.shadowcoord[2];
 	  coords.w = coords.z;
 	 coords.z = 2.0;

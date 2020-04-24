@@ -12,10 +12,9 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
-#define SHADOW_MAP_CASCADE_COUNT 3
-#define NEAR_TEXTURE_SIZE 2048
-#define MIDDLE_TEXTURE_SIZE 2048
-#define FAR_TEXTURE_SIZE 2048
+#define SHADOWMAP_TEXTURE_SIZE 2048
+
+static const glm::mat4 SCALE_BIAS = glm::mat4(glm::vec4(0.5f, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, 0.5f, 0.0f, 0.0f), glm::vec4(0.0f, 0.0f, 0.5f, 0.0f), glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
 
 struct depthmap gen_depthmap(GLsizei size)
 {
@@ -58,58 +57,12 @@ struct depthmap gen_depthmap(GLsizei size)
 	return depth;
 }
 
-/*
-struct depthmap gen_depthmap(GLsizei size)
-{
-	struct depthmap depth;
-	depth.height = size;
-	depth.width = size;
-
-	// create the depth texture
-	glGenTextures(1, &depth.texture);
-	glBindTexture(GL_TEXTURE_2D, depth.texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, size, size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-
-	//const float bordercolor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	//glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, bordercolor);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	// create FBO and attach depth texture to it
-	glGenFramebuffers(1, &depth.FBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, depth.FBO);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depth.texture, 0);
-	glDrawBuffer(GL_NONE);
-
-	GLuint status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-
-	if(status != GL_FRAMEBUFFER_COMPLETE){
-	std::cout<< "Framebuffer Error: " << std::hex << status << std::endl;
-	}
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	return depth;
-}
-*/
-
-static const glm::mat4 SCALE_BIAS = glm::mat4(glm::vec4(0.5f, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, 0.5f, 0.0f, 0.0f), glm::vec4(0.0f, 0.0f, 0.5f, 0.0f), glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
-
 Shadow::Shadow(glm::mat4 view, float near, float far)
 { 
 	lightview = view; 
 	scalebias = SCALE_BIAS;
 
-	depth = gen_depthmap(NEAR_TEXTURE_SIZE);
-	//depth[1] = gen_depthmap(MIDDLE_TEXTURE_SIZE);
-	//depth[2] = gen_depthmap(FAR_TEXTURE_SIZE);
+	depth = gen_depthmap(SHADOWMAP_TEXTURE_SIZE);
 }
 
 void Shadow::enable(void) const
@@ -223,21 +176,10 @@ void Shadow::update(const Camera *cam, float fov, float aspect, float near, floa
 
 void Shadow::bindtextures(void) const 
 {
-	glActiveTexture(GL_TEXTURE6);
+	glActiveTexture(GL_TEXTURE10);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, depth.texture);
 }
 
-/*
-void Shadow::bindtextures(GLenum near, GLenum middle, GLenum far) const 
-{
-	glActiveTexture(near);
-	glBindTexture(GL_TEXTURE_2D, depth[0].texture);
-	glActiveTexture(middle);
-	glBindTexture(GL_TEXTURE_2D, depth[1].texture);
-	glActiveTexture(far);
-	glBindTexture(GL_TEXTURE_2D, depth[2].texture);
-}
-*/
 void Shadow::binddepth(unsigned int section) const
 {
 	// make the current depth map a rendering target
@@ -246,14 +188,3 @@ void Shadow::binddepth(unsigned int section) const
 	glClearDepth(1.0f);
 	glClear(GL_DEPTH_BUFFER_BIT);
 }
-
-/*
-void Shadow::binddepth(unsigned int section) const
-{
-	glBindFramebuffer(GL_FRAMEBUFFER, depth[section].FBO);
-
-	glViewport(0, 0, depth[section].width, depth[section].height);
-	glClearDepth(1.0f);
-	glClear(GL_DEPTH_BUFFER_BIT);
-}
-*/
