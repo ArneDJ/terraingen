@@ -3,8 +3,12 @@ public:
 	glm::vec3 center;
 	glm::vec3 up;
 	glm::vec3 eye;
+	float FOV;
+	float nearclip;
+	float farclip;
 
-	Camera(glm::vec3 pos);
+public:
+	Camera(glm::vec3 pos, float fov, float near, float far);
 	void update(float delta);
 	glm::mat4 view(void) const;
 

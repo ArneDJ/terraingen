@@ -164,7 +164,6 @@ float shadow_coef(void)
 	vec4 coords = shadowspace[int(cascade)] * vec4(fragment.position, 1.0);
 	coords.w = coords.z;
 	coords.z = float(cascade);
-	//shadow = sample_shadow(coords);
 	shadow = filterPCF(coords);
 
 	return clamp(shadow, 0.1, 1.0);
@@ -215,8 +214,7 @@ void main(void)
 
 	color = fog(color, length(viewspace), height);
 
-	float gamma = 1.6;
-	color.rgb = pow(color.rgb, vec3(1.0/gamma));
-
 	fcolor = vec4(color, 1.0);
+	float gamma = 1.6;
+	fcolor.rgb = pow(fcolor.rgb, vec3(1.0/gamma));
 }

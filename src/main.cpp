@@ -28,6 +28,7 @@
 
 #define GRASS_AMOUNT 500000
 #define FOG_DENSITY 0.025f
+#define SHADOW_TEXTURE_SIZE 4096
 
 Shader base_shader(void)
 {
@@ -218,17 +219,20 @@ void run_terraingen(SDL_Window *window)
 
 	gltf::Model brainstem { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
 
-	Camera cam { glm::vec3(1024.f, 128.f, 1024.f) };
+	Camera cam { 
+		glm::vec3(1024.f, 128.f, 1024.f),
+		FOV,
+		NEAR_CLIP,
+		FAR_CLIP
+	};
 
 	struct mesh quad = gen_quad();
 	GLuint array_tex = array_texture();
 
 	const glm::vec3 light_position = glm::normalize(glm::vec3(0.2f, 0.5f, 0.5f));
-	const glm::mat4 lightview = glm::lookAt(light_position, glm::vec3(0.0f), glm::vec3(0.f, 1.f, 0.f));
-	Shadow cascaded { lightview, NEAR_CLIP, FAR_CLIP };
+	Shadow cascaded { SHADOW_TEXTURE_SIZE };
 
 	const float aspect = (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT;
-
 
 	float start = 0.f;
  	float end = 0.f;
@@ -249,7 +253,7 @@ void run_terraingen(SDL_Window *window)
 		}
 
 		// Draw from the light's point of view
-cascaded.update(&cam, FOV, aspect, NEAR_CLIP, FAR_CLIP);
+cascaded.update(&cam, light_position);
 cascaded.enable();
 for (int i = 0; i < cascaded.cascade_count; i++) {
 	cascaded.binddepth(i);
@@ -278,10 +282,10 @@ cascaded.disable();
 		terra.uniform_float("mapscale", 1.f / terrain.sidelength);
 		terra.uniform_vec3("camerapos", cam.eye);
 		std::vector<glm::mat4> shadowspace {
-			cascaded.scalebias * cascaded.shadowspace[0],
-			cascaded.scalebias * cascaded.shadowspace[1],
-			cascaded.scalebias * cascaded.shadowspace[2],
-			cascaded.scalebias * cascaded.shadowspace[3],
+		cascaded.scalebias * cascaded.shadowspace[0],
+		cascaded.scalebias * cascaded.shadowspace[1],
+		cascaded.scalebias * cascaded.shadowspace[2],
+		cascaded.scalebias * cascaded.shadowspace[3],
 		};
 		terra.uniform_mat4_array("shadowspace", shadowspace);
   cascaded.bindtextures();

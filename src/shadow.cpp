@@ -12,11 +12,7 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
-#define SHADOWMAP_TEXTURE_SIZE 4096
-
-static const glm::mat4 SCALE_BIAS = glm::mat4(glm::vec4(0.5f, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, 0.5f, 0.0f, 0.0f), glm::vec4(0.0f, 0.0f, 0.5f, 0.0f), glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
-
-struct depthmap gen_depthmap(GLsizei size)
+static struct depthmap gen_depthmap(GLsizei size)
 {
 	struct depthmap depth;
 	depth.height = size;
@@ -26,17 +22,13 @@ struct depthmap gen_depthmap(GLsizei size)
 	glGenTextures(1, &depth.texture);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, depth.texture);
 	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT32F, size, size, SHADOW_MAP_CASCADE_COUNT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	//glTexImage2D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT32F, size, size, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
-
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-
-	//const float bordercolor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	//glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, bordercolor);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 
 	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 
@@ -48,8 +40,8 @@ struct depthmap gen_depthmap(GLsizei size)
 
 	GLuint status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 
-	if(status != GL_FRAMEBUFFER_COMPLETE){
-	std::cout<< "Framebuffer Error: " << std::hex << status << std::endl;
+	if(status != GL_FRAMEBUFFER_COMPLETE) {
+		std::cout<< "Framebuffer Error: " << std::hex << status << std::endl;
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -57,12 +49,9 @@ struct depthmap gen_depthmap(GLsizei size)
 	return depth;
 }
 
-Shadow::Shadow(glm::mat4 view, float near, float far)
+Shadow::Shadow(size_t texture_size)
 { 
-	lightview = view; 
-	scalebias = SCALE_BIAS;
-
-	depth = gen_depthmap(SHADOWMAP_TEXTURE_SIZE);
+	depth = gen_depthmap(texture_size);
 }
 
 void Shadow::enable(void) const
@@ -83,20 +72,20 @@ void Shadow::disable(void) const
 	glCullFace(GL_BACK);
 }
 
-void Shadow::orthoprojection(const Camera *cam)
+void Shadow::orthoprojection(const Camera *cam, glm::vec3 lightpos)
 {
-	const float cascadeSplitLambda = 0.35f;
+	const float cascadeSplitLambda = 0.55f;
+	const float near = cam->nearclip;
+	const float far = cam->farclip;
+	const float clipRange = far - near;
+
+	const float minZ = near;
+	const float maxZ = near + clipRange;
+
+	const float range = maxZ - minZ;
+	const float ratio = maxZ / minZ;
+
 	float cascadeSplits[SHADOW_MAP_CASCADE_COUNT];
-
-	float nearClip = 0.1f;
-	float farClip = 800.f;
-	float clipRange = farClip - nearClip;
-
-	float minZ = nearClip;
-	float maxZ = nearClip + clipRange;
-
-	float range = maxZ - minZ;
-	float ratio = maxZ / minZ;
 
 	// Calculate split depths based on view camera furstum
 	// Based on method presentd in https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
@@ -105,7 +94,7 @@ void Shadow::orthoprojection(const Camera *cam)
 		float log = minZ * std::pow(ratio, p);
 		float uniform = minZ + range * p;
 		float d = cascadeSplitLambda * (log - uniform) + uniform;
-		cascadeSplits[i] = ((d - nearClip) / clipRange);
+		cascadeSplits[i] = ((d - near) / clipRange);
 	}
 
 	// Calculate orthographic projection matrix for each cascade
@@ -125,7 +114,7 @@ void Shadow::orthoprojection(const Camera *cam)
 		};
 
 		const float aspect = 1920.f/1080.f;
-		const glm::mat4 camera_perspective = glm::perspective(glm::radians(90.f), aspect, 0.1f, 800.f);
+		const glm::mat4 camera_perspective = glm::perspective(glm::radians(cam->FOV), aspect, near, far);
 		// Project frustum corners into world space
 		glm::mat4 invCam = glm::inverse(camera_perspective * cam->view());
 		for (uint32_t i = 0; i < 8; i++) {
@@ -156,22 +145,21 @@ void Shadow::orthoprojection(const Camera *cam)
 		glm::vec3 maxExtents = glm::vec3(radius);
 		glm::vec3 minExtents = -maxExtents;
 
-		const glm::vec3 lightPos = glm::vec3(0.5f, 0.5f, 0.5f);
-		glm::vec3 lightDir = normalize(-lightPos);
-		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter - lightDir * -minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::vec3 lightDir = normalize(lightpos);
+		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter + lightDir * -minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 		glm::mat4 lightOrthoMatrix = glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
 
 		// Store split distance and matrix in cascade
 		splitdepth[i] = (0.1f + splitDist * clipRange);
-		shadowspace[i] = lightOrthoMatrix * lightViewMatrix;
+		shadowspace[i] = (lightOrthoMatrix * lightViewMatrix);
 
 		lastSplitDist = cascadeSplits[i];
 	}
 }
 
-void Shadow::update(const Camera *cam, float fov, float aspect, float near, float far)
+void Shadow::update(const Camera *cam, glm::vec3 lightpos)
 {
-	orthoprojection(cam);
+	orthoprojection(cam, lightpos);
 }
 
 void Shadow::bindtextures(void) const 
@@ -182,9 +170,7 @@ void Shadow::bindtextures(void) const
 
 void Shadow::binddepth(unsigned int section) const
 {
-	// make the current depth map a rendering target
 	glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depth.texture, 0, section);
-
-	glClearDepth(1.0f);
+	glClearDepth(1.f);
 	glClear(GL_DEPTH_BUFFER_BIT);
 }
