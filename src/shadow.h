@@ -15,12 +15,12 @@ public:
 	void update(const Camera *cam, float fov, float aspect, float near, float far);
 	void enable(void) const;
 	void disable(void) const;
-	void bindtextures(GLenum near, GLenum middle, GLenum far) const; 
+	void bindtextures(void) const; 
 	void binddepth(unsigned int section) const;
 
 private:
 	glm::mat4 lightview;
-	struct depthmap depth[3];
+	struct depthmap depth;
 
 	void orthoprojection(const Camera *cam);
 };

@@ -10,9 +10,9 @@ layout(binding = 5) uniform sampler2D dirtmap;
 //layout(binding = 7) uniform sampler2D snowmap;
 
 /*TODO replace with array texture*/
-layout(binding = 6) uniform sampler2DShadow shadowmapnear;
-layout(binding = 7) uniform sampler2DShadow shadowmapmiddle;
-layout(binding = 8) uniform sampler2DShadow shadowmapfar;
+layout(binding = 6) uniform sampler2DArrayShadow shadowmap;
+//layout(binding = 7) uniform sampler2DShadow shadowmapmiddle;
+//layout(binding = 8) uniform sampler2DShadow shadowmapfar;
 
 uniform float mapscale;
 uniform vec3 camerapos;
@@ -172,13 +172,23 @@ void main(void)
 	float shadow = 1.0;
 
  if (fragment.zclipspace <= split.x) {
- shadow = textureProj(shadowmapnear, fragment.shadowcoord[0]);
+	 vec4 coords = fragment.shadowcoord[0];
+	  coords.w = coords.z;
+
+	 coords.z = 0.0;
+ shadow = texture(shadowmap, coords);
  }
  else if (fragment.zclipspace <= split.y) {
- shadow = textureProj(shadowmapmiddle, fragment.shadowcoord[1]);
+	 vec4 coords = fragment.shadowcoord[1];
+	  coords.w = coords.z;
+	 coords.z = 1.0;
+ shadow = texture(shadowmap, coords);
  }
  else if (fragment.zclipspace <= split.z) {
- shadow = textureProj(shadowmapfar, fragment.shadowcoord[2]);
+	 vec4 coords = fragment.shadowcoord[2];
+	  coords.w = coords.z;
+	 coords.z = 2.0;
+ shadow = texture(shadowmap, coords);
  } else {
 	 shadow = 1.0;
  }

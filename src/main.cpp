@@ -280,7 +280,8 @@ cascaded.disable();
 		terra.uniform_mat4("shadownear", cascaded.scalebias * cascaded.shadowspace[0]);
   terra.uniform_mat4("shadowmiddle", cascaded.scalebias * cascaded.shadowspace[1]);
   terra.uniform_mat4("shadowfar", cascaded.scalebias * cascaded.shadowspace[2]);
-  cascaded.bindtextures(GL_TEXTURE6, GL_TEXTURE7, GL_TEXTURE8);
+  //cascaded.bindtextures(GL_TEXTURE6, GL_TEXTURE7, GL_TEXTURE8);
+  cascaded.bindtextures();
 		terrain.display();
 
 		model.display(&base, glm::vec3(1024.f, 16.f, 1024.f), 1.f);
