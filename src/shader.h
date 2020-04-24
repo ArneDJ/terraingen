@@ -23,6 +23,11 @@ public:
 		glUseProgram(program);
 		glUniform3fv(glGetUniformLocation(program, name), 1, glm::value_ptr(vector));
 	}
+	void uniform_vec4(const GLchar *name, glm::vec4 vector) const
+	{
+		glUseProgram(program);
+		glUniform4fv(glGetUniformLocation(program, name), 1, glm::value_ptr(vector));
+	}
 	void uniform_mat4(const GLchar *name, glm::mat4 matrix) const
 	{
 		glUseProgram(program);

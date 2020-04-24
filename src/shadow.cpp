@@ -12,7 +12,7 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
-#define SHADOWMAP_TEXTURE_SIZE 2048
+#define SHADOWMAP_TEXTURE_SIZE 4096
 
 static const glm::mat4 SCALE_BIAS = glm::mat4(glm::vec4(0.5f, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, 0.5f, 0.0f, 0.0f), glm::vec4(0.0f, 0.0f, 0.5f, 0.0f), glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
 
@@ -85,7 +85,7 @@ void Shadow::disable(void) const
 
 void Shadow::orthoprojection(const Camera *cam)
 {
-	const float cascadeSplitLambda = 0.9f;
+	const float cascadeSplitLambda = 0.35f;
 	float cascadeSplits[SHADOW_MAP_CASCADE_COUNT];
 
 	float nearClip = 0.1f;
@@ -105,7 +105,7 @@ void Shadow::orthoprojection(const Camera *cam)
 		float log = minZ * std::pow(ratio, p);
 		float uniform = minZ + range * p;
 		float d = cascadeSplitLambda * (log - uniform) + uniform;
-		cascadeSplits[i] = (d - nearClip) / clipRange;
+		cascadeSplits[i] = ((d - nearClip) / clipRange);
 	}
 
 	// Calculate orthographic projection matrix for each cascade

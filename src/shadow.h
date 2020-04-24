@@ -1,4 +1,4 @@
-#define SHADOW_MAP_CASCADE_COUNT 3
+#define SHADOW_MAP_CASCADE_COUNT 4
 
 struct depthmap {
 	GLuint FBO;

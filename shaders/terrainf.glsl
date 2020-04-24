@@ -6,8 +6,8 @@ layout(binding = 2) uniform sampler2D occlusmap;
 layout(binding = 3) uniform sampler2D detailmap;
 layout(binding = 4) uniform sampler2D grassmap;
 layout(binding = 5) uniform sampler2D dirtmap;
-//layout(binding = 6) uniform sampler2D stonemap;
-//layout(binding = 7) uniform sampler2D snowmap;
+layout(binding = 6) uniform sampler2D stonemap;
+layout(binding = 7) uniform sampler2D snowmap;
 
 layout(binding = 10) uniform sampler2DArrayShadow shadowmap;
 
@@ -15,15 +15,16 @@ uniform float mapscale;
 uniform vec3 camerapos;
 uniform vec3 fogcolor;
 uniform float fogfactor;
-uniform vec3 split;
+
+uniform vec4 split;
+uniform mat4 shadowspace[4];
 
 out vec4 fcolor;
 
 in TESSEVAL {
 	vec3 position;
 	vec2 texcoord;
-	vec4 shadowcoord[3];
- float zclipspace;
+	float zclipspace;
 } fragment;
 
 struct material {
@@ -112,6 +113,63 @@ vec3 fog(vec3 c, float dist, float height)
 	return c * extinction + fogcolor * (1.0 - inscattering);
 }
 
+float sample_shadow(vec4 coords)
+{
+	float shadow = texture(shadowmap, coords);
+
+	return shadow;
+}
+
+float filterPCF(vec4 sc)
+{
+	ivec2 texDim = textureSize(shadowmap, 0).xy;
+	float scale = 0.75;
+	float dx = scale * 1.0 / float(texDim.x);
+	float dy = scale * 1.0 / float(texDim.y);
+
+	float shadowFactor = 0.0;
+	int count = 0;
+	int range = 1;
+
+	for (int x = -range; x <= range; x++) {
+		for (int y = -range; y <= range; y++) {
+			vec4 coords = sc;
+			coords.x += dx*x;
+			coords.y += dy*y;
+			shadowFactor += sample_shadow(coords);
+			count++;
+		}
+	}
+	return shadowFactor / count;
+}
+
+
+float shadow_coef(void)
+{
+	float shadow = 1.0;
+
+	int cascade = 0;
+	if (fragment.zclipspace < split.x) {
+		cascade = 0;
+	} else if (fragment.zclipspace < split.y) {
+		cascade = 1;
+	} else if (fragment.zclipspace < split.z) {
+		cascade = 2;
+	} else if (fragment.zclipspace < split.w) {
+		cascade = 3;
+	} else {
+		return 1.0;
+	}
+
+	vec4 coords = shadowspace[int(cascade)] * vec4(fragment.position, 1.0);
+	coords.w = coords.z;
+	coords.z = float(cascade);
+	//shadow = sample_shadow(coords);
+	shadow = filterPCF(coords);
+
+	return clamp(shadow, 0.1, 1.0);
+}
+
 void main(void)
 {
 	const vec3 lightdirection = vec3(0.5, 0.5, 0.5);
@@ -133,65 +191,32 @@ void main(void)
 
 	normal = normalize((slope * detail) + normal);
 
-	/*
 	material mat = material(
 		texture(grassmap, 0.1*fragment.texcoord).rgb,
 		texture(dirtmap, 0.1*fragment.texcoord).rgb,
 		texture(stonemap, 0.03*fragment.texcoord).rgb * vec3(0.7, 0.7, 0.7),
 		texture(snowmap, 0.05*fragment.texcoord).rgb
 	);
-	*/
 
-/*
 	float strata = warpfbm(0.05 * fragment.position.xz);
 
 	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.45, 0.55, height + (0.1*strata)));
 	vec3 rocks = mix(mat.dirt, mat.stone, smoothstep(0.3, 0.4, height));
 	color = mix(color, rocks, smoothstep(0.4, 0.55, slope - (0.5*strata)));
-*/
 
-/*
 	float diffuse = max(0.0, dot(normal, lightdirection));
+	float shadow = shadow_coef();
 
-	vec3 scatteredlight = ambient + lightcolor * diffuse;
+	vec3 scatteredlight = ambient + lightcolor * diffuse * shadow;
 	color.rgb = min(color.rgb * scatteredlight, vec3(1.0));
 
 	float occlusion = texture(occlusmap, uv).r;
 	color *= occlusion;
 
 	color = fog(color, length(viewspace), height);
-*/
 
-	//float gamma = 1.6;
-	//color.rgb = pow(color.rgb, vec3(1.0/gamma));
-	vec3 color = texture(grassmap, 0.1*fragment.texcoord).rgb;
-
-	float shadow = 1.0;
-
- if (fragment.zclipspace < split.x) {
-	 vec4 coords = fragment.shadowcoord[0];
-	  coords.w = coords.z;
-
-	 coords.z = 0.0;
- shadow = texture(shadowmap, coords);
- }
- else if (fragment.zclipspace < split.y) {
-	 vec4 coords = fragment.shadowcoord[1];
-	  coords.w = coords.z;
-	 coords.z = 1.0;
- shadow = texture(shadowmap, coords);
- }
- else if (fragment.zclipspace < split.z) {
-	 vec4 coords = fragment.shadowcoord[2];
-	  coords.w = coords.z;
-	 coords.z = 2.0;
- shadow = texture(shadowmap, coords);
- } else {
-	 shadow = 1.0;
- }
-
- if (shadow < 0.6) { shadow = 0.6; }
- color.rgb *= shadow;
+	float gamma = 1.6;
+	color.rgb = pow(color.rgb, vec3(1.0/gamma));
 
 	fcolor = vec4(color, 1.0);
 }

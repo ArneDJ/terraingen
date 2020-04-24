@@ -2,19 +2,17 @@
 
 layout(binding = 0) uniform sampler2D heightmap;
 
-uniform mat4 shadowspace[4];
 uniform mat4 view, project;
-uniform mat4 projectview;
 uniform float amplitude;
 uniform float mapscale;
+uniform vec3 split;
 
 layout(quads, fractional_even_spacing, ccw) in;
 
 out TESSEVAL {
 	vec3 position;
 	vec2 texcoord;
-	vec4 shadowcoord[3];
- float zclipspace;
+	float zclipspace;
 } tesseval;
 
 void main(void)
@@ -29,11 +27,7 @@ void main(void)
 	tesseval.position = pos.xyz;
 	tesseval.texcoord = pos.xz;
 
-	for (int i = 0; i < 3; i++) {
-		tesseval.shadowcoord[i] = shadowspace[i] * pos;
-	}
-
 	gl_Position = project * view * pos;
-	//gl_Position = projectview * pos;
+
 	tesseval.zclipspace = gl_Position.z;
 }
