@@ -1,4 +1,5 @@
 #include <iostream>
+#include <algorithm>
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <glm/glm.hpp>
@@ -9,9 +10,6 @@
 #include "camera.h"
 #include "shadow.h"
 
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#define max(a, b) ((a) > (b) ? (a) : (b))
-
 static struct depthmap gen_depthmap(GLsizei size)
 {
 	struct depthmap depth;
@@ -21,7 +19,7 @@ static struct depthmap gen_depthmap(GLsizei size)
 	// create the depth texture
 	glGenTextures(1, &depth.texture);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, depth.texture);
-	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT32F, size, size, SHADOW_MAP_CASCADE_COUNT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT32F, size, size, SHADOWMAP_CASCADE_COUNT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -72,99 +70,95 @@ void Shadow::disable(void) const
 	glCullFace(GL_BACK);
 }
 
-void Shadow::orthoprojection(const Camera *cam, glm::vec3 lightpos)
+void Shadow::update(const Camera *cam, glm::vec3 lightpos)
 {
-	const float cascadeSplitLambda = 0.55f;
 	const float near = cam->nearclip;
 	const float far = cam->farclip;
-	const float clipRange = far - near;
+	const float cliprange = far - near;
+	const float aspect = cam->aspectratio;
 
-	const float minZ = near;
-	const float maxZ = near + clipRange;
+	const float min_z = near;
+	const float max_z = near + cliprange;
 
-	const float range = maxZ - minZ;
-	const float ratio = maxZ / minZ;
+	const float range = max_z - min_z;
+	const float ratio = max_z / min_z;
 
-	float cascadeSplits[SHADOW_MAP_CASCADE_COUNT];
+	const glm::mat4 camera_perspective = glm::perspective(glm::radians(cam->FOV), aspect, near, far);
+
+	float splits[SHADOWMAP_CASCADE_COUNT];
 
 	// Calculate split depths based on view camera furstum
 	// Based on method presentd in https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
-	for (uint32_t i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-		float p = (i + 1) / static_cast<float>(SHADOW_MAP_CASCADE_COUNT);
-		float log = minZ * std::pow(ratio, p);
-		float uniform = minZ + range * p;
-		float d = cascadeSplitLambda * (log - uniform) + uniform;
-		cascadeSplits[i] = ((d - near) / clipRange);
+	const float lambda = 0.55f;
+	for (uint32_t i = 0; i < SHADOWMAP_CASCADE_COUNT; i++) {
+		float p = (i + 1) / static_cast<float>(SHADOWMAP_CASCADE_COUNT);
+		float log = min_z * std::pow(ratio, p);
+		float uniform = min_z + range * p;
+		float d = lambda * (log - uniform) + uniform;
+		splits[i] = ((d - near) / cliprange);
 	}
 
 	// Calculate orthographic projection matrix for each cascade
-	float lastSplitDist = 0.0;
-	for (uint32_t i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++) {
-		float splitDist = cascadeSplits[i];
+	float last_split = 0.f;
+	for (uint32_t i = 0; i < SHADOWMAP_CASCADE_COUNT; i++) {
+		float split_dist = splits[i];
 
-		glm::vec3 frustumCorners[8] = {
-		glm::vec3(-1.0f,  1.0f, -1.0f),
-		glm::vec3( 1.0f,  1.0f, -1.0f),
-		glm::vec3( 1.0f, -1.0f, -1.0f),
-		glm::vec3(-1.0f, -1.0f, -1.0f),
-		glm::vec3(-1.0f,  1.0f,  1.0f),
-		glm::vec3( 1.0f,  1.0f,  1.0f),
-		glm::vec3( 1.0f, -1.0f,  1.0f),
-		glm::vec3(-1.0f, -1.0f,  1.0f),
+		glm::vec3 corners[8] = {
+			glm::vec3(-1.0f,  1.0f, -1.0f),
+			glm::vec3( 1.0f,  1.0f, -1.0f),
+			glm::vec3( 1.0f, -1.0f, -1.0f),
+			glm::vec3(-1.0f, -1.0f, -1.0f),
+			glm::vec3(-1.0f,  1.0f,  1.0f),
+			glm::vec3( 1.0f,  1.0f,  1.0f),
+			glm::vec3( 1.0f, -1.0f,  1.0f),
+			glm::vec3(-1.0f, -1.0f,  1.0f),
 		};
 
-		const float aspect = 1920.f/1080.f;
-		const glm::mat4 camera_perspective = glm::perspective(glm::radians(cam->FOV), aspect, near, far);
 		// Project frustum corners into world space
-		glm::mat4 invCam = glm::inverse(camera_perspective * cam->view());
+		glm::mat4 invcam = glm::inverse(camera_perspective * cam->view());
 		for (uint32_t i = 0; i < 8; i++) {
-			glm::vec4 invCorner = invCam * glm::vec4(frustumCorners[i], 1.0f);
-			frustumCorners[i] = invCorner / invCorner.w;
+			glm::vec4 invcorner = invcam * glm::vec4(corners[i], 1.0f);
+			corners[i] = invcorner / invcorner.w;
 		}
 
 		for (uint32_t i = 0; i < 4; i++) {
-			glm::vec3 dist = frustumCorners[i + 4] - frustumCorners[i];
-			frustumCorners[i + 4] = frustumCorners[i] + (dist * splitDist);
-			frustumCorners[i] = frustumCorners[i] + (dist * lastSplitDist);
+			glm::vec3 dist = corners[i + 4] - corners[i];
+			corners[i + 4] = corners[i] + (dist * split_dist);
+			corners[i] = corners[i] + (dist * last_split);
 		}
 
 		// Get frustum center
-		glm::vec3 frustumCenter = glm::vec3(0.0f);
+		glm::vec3 center = glm::vec3(0.0f);
 		for (uint32_t i = 0; i < 8; i++) {
-			frustumCenter += frustumCorners[i];
+			center += corners[i];
 		}
-		frustumCenter /= 8.0f;
+		center /= 8.0f;
 
 		float radius = 0.0f;
 		for (uint32_t i = 0; i < 8; i++) {
-			float distance = glm::length(frustumCorners[i] - frustumCenter);
-			radius = max(radius, distance);
+			float distance = glm::length(corners[i] - center);
+			radius = std::max(radius, distance);
 		}
 		radius = std::ceil(radius * 16.0f) / 16.0f;
 
-		glm::vec3 maxExtents = glm::vec3(radius);
-		glm::vec3 minExtents = -maxExtents;
+		glm::vec3 max_extents = glm::vec3(radius);
+		glm::vec3 min_extents = -max_extents;
 
-		glm::vec3 lightDir = normalize(lightpos);
-		glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter + lightDir * -minExtents.z, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
-		glm::mat4 lightOrthoMatrix = glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f, maxExtents.z - minExtents.z);
+		glm::vec3 lightdir = normalize(lightpos);
+		glm::mat4 lightview = glm::lookAt(center + lightdir * -min_extents.z, center, glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat4 lightortho = glm::ortho(min_extents.x, max_extents.x, min_extents.y, max_extents.y, 0.0f, max_extents.z - min_extents.z);
 
 		// Store split distance and matrix in cascade
-		splitdepth[i] = (0.1f + splitDist * clipRange);
-		shadowspace[i] = (lightOrthoMatrix * lightViewMatrix);
+		splitdepth[i] = (0.1f + split_dist * cliprange);
+		shadowspace[i] = (lightortho * lightview);
 
-		lastSplitDist = cascadeSplits[i];
+		last_split = splits[i];
 	}
 }
 
-void Shadow::update(const Camera *cam, glm::vec3 lightpos)
+void Shadow::bindtextures(GLenum unit) const 
 {
-	orthoprojection(cam, lightpos);
-}
-
-void Shadow::bindtextures(void) const 
-{
-	glActiveTexture(GL_TEXTURE10);
+	glActiveTexture(unit);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, depth.texture);
 }
 

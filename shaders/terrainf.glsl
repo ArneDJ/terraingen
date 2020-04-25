@@ -113,21 +113,14 @@ vec3 fog(vec3 c, float dist, float height)
 	return c * extinction + fogcolor * (1.0 - inscattering);
 }
 
-float sample_shadow(vec4 coords)
-{
-	float shadow = texture(shadowmap, coords);
-
-	return shadow;
-}
-
 float filterPCF(vec4 sc)
 {
-	ivec2 texDim = textureSize(shadowmap, 0).xy;
+	ivec2 size = textureSize(shadowmap, 0).xy;
 	float scale = 0.75;
-	float dx = scale * 1.0 / float(texDim.x);
-	float dy = scale * 1.0 / float(texDim.y);
+	float dx = scale * 1.0 / float(size.x);
+	float dy = scale * 1.0 / float(size.y);
 
-	float shadowFactor = 0.0;
+	float shadow = 0.0;
 	int count = 0;
 	int range = 1;
 
@@ -136,13 +129,12 @@ float filterPCF(vec4 sc)
 			vec4 coords = sc;
 			coords.x += dx*x;
 			coords.y += dy*y;
-			shadowFactor += sample_shadow(coords);
+			shadow += texture(shadowmap, coords);
 			count++;
 		}
 	}
-	return shadowFactor / count;
+	return shadow / count;
 }
-
 
 float shadow_coef(void)
 {

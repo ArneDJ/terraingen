@@ -122,15 +122,15 @@ Shader skybox_shader(void)
 
 Shader shadow_shader(void)
 {
- struct shaderinfo pipeline[] = {
-  {GL_VERTEX_SHADER, "shaders/shadowmapv.glsl"},
-  {GL_FRAGMENT_SHADER, "shaders/shadowmapf.glsl"},
-  {GL_NONE, NULL}
- };
+	struct shaderinfo pipeline[] = {
+	{GL_VERTEX_SHADER, "shaders/depthmapv.glsl"},
+	{GL_FRAGMENT_SHADER, "shaders/depthmapf.glsl"},
+	{GL_NONE, NULL}
+	};
 
- Shader shader(pipeline);
+	Shader shader(pipeline);
 
- return shader;
+	return shader;
 }
 
 Skybox init_skybox(void)
@@ -219,9 +219,12 @@ void run_terraingen(SDL_Window *window)
 
 	gltf::Model brainstem { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
 
+	const float aspect = (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT;
+
 	Camera cam { 
 		glm::vec3(1024.f, 128.f, 1024.f),
 		FOV,
+		aspect,
 		NEAR_CLIP,
 		FAR_CLIP
 	};
@@ -231,8 +234,6 @@ void run_terraingen(SDL_Window *window)
 
 	const glm::vec3 light_position = glm::normalize(glm::vec3(0.2f, 0.5f, 0.5f));
 	Shadow cascaded { SHADOW_TEXTURE_SIZE };
-
-	const float aspect = (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT;
 
 	float start = 0.f;
  	float end = 0.f;
@@ -253,18 +254,17 @@ void run_terraingen(SDL_Window *window)
 		}
 
 		// Draw from the light's point of view
-cascaded.update(&cam, light_position);
-cascaded.enable();
-for (int i = 0; i < cascaded.cascade_count; i++) {
-	cascaded.binddepth(i);
-	shadow.uniform_mat4("view_projection", cascaded.shadowspace[i]);
-	shadow.uniform_bool("instanced", false);
-	model.display(&shadow, glm::vec3(1024.f, 128.f, 1024.f), 1.f);
-	duck.display(&shadow, glm::vec3(1054.f, 128.f, 1036.f), 5.f);
-	brainstem.display(&shadow, glm::vec3(1024.f, 128.f, 1054.f), 5.f);
-}
-
-cascaded.disable();
+		cascaded.update(&cam, light_position);
+		cascaded.enable();
+		for (int i = 0; i < cascaded.cascade_count; i++) {
+			cascaded.binddepth(i);
+			shadow.uniform_mat4("view_projection", cascaded.shadowspace[i]);
+			shadow.uniform_bool("instanced", false);
+			model.display(&shadow, glm::vec3(1024.f, 128.f, 1024.f), 1.f);
+			duck.display(&shadow, glm::vec3(1054.f, 128.f, 1036.f), 5.f);
+			brainstem.display(&shadow, glm::vec3(1024.f, 128.f, 1054.f), 5.f);
+		}
+		cascaded.disable();
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -276,8 +276,7 @@ cascaded.disable();
 		sky.uniform_mat4("view", view);
 
 		terra.bind();
-	glm::vec4 split(cascaded.splitdepth[0], cascaded.splitdepth[1], cascaded.splitdepth[2], cascaded.splitdepth[3]);
- 	terra.uniform_vec4("split", split);
+		terra.uniform_vec4("split", cascaded.splitdepth);
 		terra.uniform_float("amplitude", terrain.amplitude);
 		terra.uniform_float("mapscale", 1.f / terrain.sidelength);
 		terra.uniform_vec3("camerapos", cam.eye);
@@ -288,7 +287,7 @@ cascaded.disable();
 		cascaded.scalebias * cascaded.shadowspace[3],
 		};
 		terra.uniform_mat4_array("shadowspace", shadowspace);
-  cascaded.bindtextures();
+  		cascaded.bindtextures(GL_TEXTURE10);
 		terrain.display();
 
 		model.display(&base, glm::vec3(1024.f, 128.f, 1024.f), 1.f);

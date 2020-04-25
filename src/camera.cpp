@@ -9,7 +9,7 @@
 #define DEFAULT_SENSITIVITY 0.1f
 #define DEFAULT_SPEED 50.f
 
-Camera::Camera(glm::vec3 pos, float fov, float near, float far) 
+Camera::Camera(glm::vec3 pos, float fov, float aspect, float near, float far) 
 {
 	yaw = 0.f;
 	pitch = 0.f;
@@ -22,6 +22,7 @@ Camera::Camera(glm::vec3 pos, float fov, float near, float far)
 	eye = pos;
 
 	FOV = fov;
+	aspectratio = aspect;
 	nearclip = near;
 	farclip = far;
 }
