@@ -21,6 +21,9 @@ Camera::Camera(glm::vec3 pos, float fov, float aspect, float near, float far)
 	up = glm::vec3(0.f, 1.f, 0.f);
 	eye = pos;
 
+	view = glm::mat4{1.f};
+	project = glm::perspective(glm::radians(fov), aspect, near, far);
+
 	FOV = fov;
 	aspectratio = aspect;
 	nearclip = near;
@@ -53,9 +56,13 @@ void Camera::update(float delta)
 	if (keystates[SDL_SCANCODE_S]) { eye -= modifier * center; }
 	if (keystates[SDL_SCANCODE_D]) { eye += modifier * glm::normalize(glm::cross(center, up)); }
 	if (keystates[SDL_SCANCODE_A]) { eye -= modifier * glm::normalize(glm::cross(center, up)); }
+
+	view = glm::lookAt(eye, eye + center, up);
 }
 
+/*
 glm::mat4 Camera::view(void) const
 {
 	return glm::lookAt(eye, eye + center, up);
 }
+*/

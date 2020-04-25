@@ -10,7 +10,7 @@
 #include "camera.h"
 #include "shadow.h"
 
-static struct depthmap gen_depthmap(GLsizei size)
+static struct depthmap gen_depthmap(GLsizei size, GLsizei layers)
 {
 	struct depthmap depth;
 	depth.height = size;
@@ -19,7 +19,7 @@ static struct depthmap gen_depthmap(GLsizei size)
 	// create the depth texture
 	glGenTextures(1, &depth.texture);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, depth.texture);
-	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT32F, size, size, SHADOWMAP_CASCADE_COUNT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT32F, size, size, layers, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -49,7 +49,7 @@ static struct depthmap gen_depthmap(GLsizei size)
 
 Shadow::Shadow(size_t texture_size)
 { 
-	depth = gen_depthmap(texture_size);
+	depth = gen_depthmap(texture_size, CASCADE_COUNT);
 }
 
 void Shadow::enable(void) const
@@ -83,15 +83,15 @@ void Shadow::update(const Camera *cam, glm::vec3 lightpos)
 	const float range = max_z - min_z;
 	const float ratio = max_z / min_z;
 
-	const glm::mat4 camera_perspective = glm::perspective(glm::radians(cam->FOV), aspect, near, far);
+	const glm::mat4 camera_perspective = cam->project;
 
-	float splits[SHADOWMAP_CASCADE_COUNT];
+	float splits[CASCADE_COUNT];
 
 	// Calculate split depths based on view camera furstum
 	// Based on method presentd in https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
 	const float lambda = 0.55f;
-	for (uint32_t i = 0; i < SHADOWMAP_CASCADE_COUNT; i++) {
-		float p = (i + 1) / static_cast<float>(SHADOWMAP_CASCADE_COUNT);
+	for (uint32_t i = 0; i < CASCADE_COUNT; i++) {
+		float p = (i + 1) / static_cast<float>(CASCADE_COUNT);
 		float log = min_z * std::pow(ratio, p);
 		float uniform = min_z + range * p;
 		float d = lambda * (log - uniform) + uniform;
@@ -100,7 +100,7 @@ void Shadow::update(const Camera *cam, glm::vec3 lightpos)
 
 	// Calculate orthographic projection matrix for each cascade
 	float last_split = 0.f;
-	for (uint32_t i = 0; i < SHADOWMAP_CASCADE_COUNT; i++) {
+	for (uint32_t i = 0; i < CASCADE_COUNT; i++) {
 		float split_dist = splits[i];
 
 		glm::vec3 corners[8] = {
@@ -115,7 +115,7 @@ void Shadow::update(const Camera *cam, glm::vec3 lightpos)
 		};
 
 		// Project frustum corners into world space
-		glm::mat4 invcam = glm::inverse(camera_perspective * cam->view());
+		glm::mat4 invcam = glm::inverse(camera_perspective * cam->view);
 		for (uint32_t i = 0; i < 8; i++) {
 			glm::vec4 invcorner = invcam * glm::vec4(corners[i], 1.0f);
 			corners[i] = invcorner / invcorner.w;

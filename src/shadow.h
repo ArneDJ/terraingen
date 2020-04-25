@@ -1,5 +1,3 @@
-#define SHADOWMAP_CASCADE_COUNT 4
-
 struct depthmap {
 	GLuint FBO;
 	GLuint texture;
@@ -9,14 +7,14 @@ struct depthmap {
 
 class Shadow {
 public:
-	const uint8_t cascade_count = SHADOWMAP_CASCADE_COUNT;
+	const uint8_t CASCADE_COUNT = 4;
 	const glm::mat4 scalebias = glm::mat4(
 		glm::vec4(0.5f, 0.0f, 0.0f, 0.0f), 
 		glm::vec4(0.0f, 0.5f, 0.0f, 0.0f), 
 		glm::vec4(0.0f, 0.0f, 0.5f, 0.0f), 
 		glm::vec4(0.5f, 0.5f, 0.5f, 1.0f)
 	);
-	glm::mat4 shadowspace[SHADOWMAP_CASCADE_COUNT];
+	glm::mat4 shadowspace[4];
 	glm::vec4 splitdepth;
 public:
 	Shadow(size_t texture_size);

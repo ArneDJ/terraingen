@@ -150,62 +150,12 @@ Skybox init_skybox(void)
 	return skybox;
 }
 
-GLuint array_texture(void)
-{
-	GLuint texture = 0;
-
-	GLsizei width = 2;
-	GLsizei height = 2;
-	GLsizei layerCount = 2;
-	GLsizei mipLevelCount = 1;
-
-	// Read you texels here. In the current example, we have 2*2*2 = 8 texels, with each texel being 4 GLubytes.
-	GLubyte texels[32] =
-	{
-	// Texels for first image.
-	0,   0,   0,   255,
-	255, 0,   0,   255,
-	0,   255, 0,   255,
-	0,   0,   255, 255,
-	// Texels for second image.
-	255, 255, 255, 255,
-	255, 255,   0, 255,
-	0,   255, 255, 255,
-	255, 0,   255, 255,
-	};
-
-	glGenTextures(1,&texture);
-	glBindTexture(GL_TEXTURE_2D_ARRAY,texture);
-	// Allocate the storage.
-	glTexStorage3D(GL_TEXTURE_2D_ARRAY, mipLevelCount, GL_RGBA8, width, height, layerCount);
-	// Upload pixel data.
-	// The first 0 refers to the mipmap level (level 0, since there's only 1)
-	// The following 2 zeroes refers to the x and y offsets in case you only want to specify a subrectangle.
-	// The final 0 refers to the layer index offset (we start from index 0 and have 2 levels).
-	// Altogether you can specify a 3D box subset of the overall texture, but only one mip level at a time.
-	glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, width, height, layerCount, GL_RGBA, GL_UNSIGNED_BYTE, texels);
-
-	// Always set reasonable texture parameters
-	glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
-
-	glBindTexture(GL_TEXTURE_2D_ARRAY,0);
-
-	return texture;
-}
-
 void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 
-	Shader base = base_shader();
-	Shader undergrowth = grass_shader();
 	Shader terra = terrain_shader();
 	Shader sky = skybox_shader();
-
-	Shader shadow = shadow_shader();
 
 	Skybox skybox = init_skybox();
 
@@ -214,85 +164,35 @@ void run_terraingen(SDL_Window *window)
 	terrain.gennormalmap();
 	terrain.genocclusmap();
 
-	gltf::Model model { "media/models/dragon.glb" };
-	gltf::Model duck { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
-
-	gltf::Model brainstem { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
-
-	const float aspect = (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT;
-
 	Camera cam { 
 		glm::vec3(1024.f, 128.f, 1024.f),
 		FOV,
-		aspect,
+		float(WINDOW_WIDTH) / float(WINDOW_HEIGHT),
 		NEAR_CLIP,
 		FAR_CLIP
 	};
 
-	struct mesh quad = gen_quad();
-	GLuint array_tex = array_texture();
-
-	const glm::vec3 light_position = glm::normalize(glm::vec3(0.2f, 0.5f, 0.5f));
-	Shadow cascaded { SHADOW_TEXTURE_SIZE };
-
 	float start = 0.f;
  	float end = 0.f;
-	static float timer = 0.f;
 
 	SDL_Event event;
 	while (event.type != SDL_QUIT) {
 		while(SDL_PollEvent(&event));
-		float time = 0.01 * float(SDL_GetTicks());
-		start = 0.001f * SDL_GetTicks();
+		start = 0.001f * float(SDL_GetTicks());
 		const float delta = start - end;
 		cam.update(delta);
-
-		timer += delta;
-		if (brainstem.animations.empty() == false) {
-			if (timer > brainstem.animations[0].end) { timer -= brainstem.animations[0].end; }
-			brainstem.updateAnimation(0, timer);
-		}
-
-		// Draw from the light's point of view
-		cascaded.update(&cam, light_position);
-		cascaded.enable();
-		for (int i = 0; i < cascaded.cascade_count; i++) {
-			cascaded.binddepth(i);
-			shadow.uniform_mat4("view_projection", cascaded.shadowspace[i]);
-			shadow.uniform_bool("instanced", false);
-			model.display(&shadow, glm::vec3(1024.f, 128.f, 1024.f), 1.f);
-			duck.display(&shadow, glm::vec3(1054.f, 128.f, 1036.f), 5.f);
-			brainstem.display(&shadow, glm::vec3(1024.f, 128.f, 1054.f), 5.f);
-		}
-		cascaded.disable();
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 
-		glm::mat4 view = cam.view();
-		base.uniform_mat4("view", view);
-		terra.uniform_mat4("view", view);
-		undergrowth.uniform_mat4("view", view);
-		sky.uniform_mat4("view", view);
+		terra.uniform_mat4("view", cam.view);
+		sky.uniform_mat4("view", cam.view);
 
 		terra.bind();
-		terra.uniform_vec4("split", cascaded.splitdepth);
 		terra.uniform_float("amplitude", terrain.amplitude);
 		terra.uniform_float("mapscale", 1.f / terrain.sidelength);
 		terra.uniform_vec3("camerapos", cam.eye);
-		std::vector<glm::mat4> shadowspace {
-		cascaded.scalebias * cascaded.shadowspace[0],
-		cascaded.scalebias * cascaded.shadowspace[1],
-		cascaded.scalebias * cascaded.shadowspace[2],
-		cascaded.scalebias * cascaded.shadowspace[3],
-		};
-		terra.uniform_mat4_array("shadowspace", shadowspace);
-  		cascaded.bindtextures(GL_TEXTURE10);
 		terrain.display();
-
-		model.display(&base, glm::vec3(1024.f, 128.f, 1024.f), 1.f);
-		duck.display(&base, glm::vec3(1054.f, 128.f, 1036.f), 5.f);
-		brainstem.display(&base, glm::vec3(1024.f, 128.f, 1054.f), 5.f);
 
 		sky.bind();
 		skybox.display();
