@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <random>
 #include <SDL2/SDL.h>
 #include <GL/glew.h>
 #include <GL/gl.h>
@@ -27,6 +28,7 @@
 #define FAR_CLIP 800.f
 
 #define GRASS_AMOUNT 500000
+#define TREES_DENSITY 50000
 #define FOG_DENSITY 0.025f
 #define SHADOW_TEXTURE_SIZE 4096
 
@@ -59,6 +61,30 @@ Shader grass_shader(void)
 	struct shaderinfo pipeline[] = {
 		{GL_VERTEX_SHADER, "shaders/grassv.glsl"},
 		{GL_FRAGMENT_SHADER, "shaders/grassf.glsl"},
+		{GL_NONE, NULL}
+	};
+
+	Shader shader(pipeline);
+
+	shader.bind();
+
+	const float aspect = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
+	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR_CLIP, FAR_CLIP);
+	shader.uniform_mat4("project", project);
+
+	glm::mat4 model = glm::mat4(1.f);
+	shader.uniform_mat4("model", model);
+	shader.uniform_vec3("fogcolor", glm::vec3(0.46, 0.7, 0.99));
+	shader.uniform_float("fogfactor", FOG_DENSITY);
+
+	return shader;
+}
+
+Shader tree_shader(void)
+{
+	struct shaderinfo pipeline[] = {
+		{GL_VERTEX_SHADER, "shaders/treev.glsl"},
+		{GL_FRAGMENT_SHADER, "shaders/treef.glsl"},
 		{GL_NONE, NULL}
 	};
 
@@ -155,6 +181,7 @@ void run_terraingen(SDL_Window *window)
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 
 	Shader terra = terrain_shader();
+	Shader trees = tree_shader();
 	Shader sky = skybox_shader();
 
 	Skybox skybox = init_skybox();
@@ -163,6 +190,39 @@ void run_terraingen(SDL_Window *window)
 	terrain.genheightmap(1024, 0.01);
 	terrain.gennormalmap();
 	terrain.genocclusmap();
+
+	struct mesh tree = gen_cardinal_quads();
+	GLuint tree_texture = load_DDS_texture("media/textures/tree.dds");
+
+	const float invratio = 1.f / terrain.mapratio;
+	//const float minpos = 0.25f * (invratio * terrain.sidelength); // max grass position
+	//const float maxpos = 0.75f * (invratio * terrain.sidelength); // min grass position
+	const float minpos = 0.f * (invratio * terrain.sidelength); // max grass position
+	const float maxpos = 1.f * (invratio * terrain.sidelength); // min grass position
+
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<> dis(0.f, 1.57f);
+	std::uniform_real_distribution<> size(5.f, 7.f);
+	std::uniform_real_distribution<> map(minpos, maxpos);
+
+	std::vector<glm::mat4> transforms;
+	transforms.reserve(TREES_DENSITY);
+	for (int i = 0; i < TREES_DENSITY; i++) {
+		float x = map(gen);
+		float z = map(gen);
+		float y = terrain.sampleheight(x, z);
+		if (terrain.sampleslope(x, z) < 0.6 && y < 0.35) {
+			float angle = dis(gen);
+			glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(x*terrain.mapratio, terrain.amplitude*y+dis(gen)+4.f, z*terrain.mapratio));
+			glm::mat4 R = glm::rotate(angle, glm::vec3(0.0, 1.0, 0.0));
+			glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(3.f, size(gen), 3.f));
+			transforms.push_back(T * R * S);
+		}
+	}
+	size_t instancecount = transforms.size();
+	transforms.resize(instancecount);
+	instance_static_VAO(tree.VAO, &transforms);
 
 	Camera cam { 
 		glm::vec3(1024.f, 128.f, 1024.f),
@@ -187,12 +247,22 @@ void run_terraingen(SDL_Window *window)
 
 		terra.uniform_mat4("view", cam.view);
 		sky.uniform_mat4("view", cam.view);
+		trees.uniform_mat4("view", cam.view);
 
 		terra.bind();
 		terra.uniform_float("amplitude", terrain.amplitude);
 		terra.uniform_float("mapscale", 1.f / terrain.sidelength);
 		terra.uniform_vec3("camerapos", cam.eye);
 		terrain.display();
+
+		trees.bind();
+		trees.uniform_float("mapscale", 1.f / terrain.sidelength);
+		trees.uniform_vec3("camerapos", cam.eye);
+	glDisable(GL_CULL_FACE);
+	activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, tree_texture);
+	glBindVertexArray(tree.VAO);
+	glDrawElementsInstanced(tree.mode, tree.ecount, GL_UNSIGNED_SHORT, NULL, instancecount);
+	glEnable(GL_CULL_FACE);
 
 		sky.bind();
 		skybox.display();
