@@ -107,6 +107,86 @@ struct rawimage gen_occlusmap(const struct rawimage *heightmap)
 	return occlusmap;
 }
 
+void terrain_image(unsigned char *image, size_t sidelength, long seed, float freq)
+{
+	seed = 1337;
+
+	// billow
+	FastNoise noise;
+	noise.SetSeed(seed);
+	noise.SetNoiseType(FastNoise::SimplexFractal);
+	noise.SetFractalType(FastNoise::Billow);
+	noise.SetFrequency(0.001f);
+	noise.SetFractalOctaves(6);
+	noise.SetFractalLacunarity(2.0f);
+	noise.SetGradientPerturbAmp(20.f);
+
+	// ridges
+	FastNoise cellnoise;
+	cellnoise.SetSeed(seed);
+	cellnoise.SetNoiseType(FastNoise::Cellular);
+	cellnoise.SetCellularDistanceFunction(FastNoise::Euclidean);
+	cellnoise.SetFrequency(0.01f);
+	cellnoise.SetCellularReturnType(FastNoise::Distance2Add);
+	cellnoise.SetGradientPerturbAmp(30.f);
+
+	// detail
+	FastNoise rigid;
+	rigid.SetSeed(seed);
+	rigid.SetNoiseType(FastNoise::SimplexFractal);
+	rigid.SetFractalType(FastNoise::RigidMulti);
+	rigid.SetFrequency(0.002f);
+	rigid.SetFractalOctaves(6);
+	rigid.SetFractalLacunarity(2.0f);
+	rigid.SetGradientPerturbAmp(30.f);
+
+	float max = 1.f;
+	for (int i = 0; i < sidelength; i++) {
+		for (int j = 0; j < sidelength; j++) {
+			float x = i; float y = j;
+			cellnoise.GradientPerturbFractal(x, y);
+			float val = cellnoise.GetNoise(x, y);
+			if (val > max) { max = val; }
+		}
+	}
+
+	const glm::vec2 center = glm::vec2(0.5f*float(sidelength), 0.5f*float(sidelength));
+	unsigned int index = 0;
+	for (int i = 0; i < sidelength; i++) {
+		for (int j = 0; j < sidelength; j++) {
+			float x = i; float y = j;
+			noise.GradientPerturbFractal(x, y);
+			float billow = (noise.GetNoise(x, y) + 1.f) / 2.f;
+
+			x = i; y = j;
+			cellnoise.GradientPerturbFractal(x, y);
+			float ridge = cellnoise.GetNoise(x, y) / max;
+
+			x = i; y = j;
+			rigid.GradientPerturbFractal(x, y);
+			float detail = 1.f - ((rigid.GetNoise(x, y) + 1.f) / 2.f);
+
+			float height = ridge;
+			//float height = glm::mix(billow, ridge, 0.6f);
+
+			float mask = glm::distance(center, glm::vec2(float(i), float(j))) / float(0.5f*sidelength);
+			mask = glm::smoothstep(0.5f, 0.8f, mask);
+			//mask = glm::clamp(0.5f, 1.f, mask);
+			mask = glm::clamp(mask, 0.2f, 1.f);
+
+			//height = glm::mix(height, detail, 0.4f);
+
+			//height = glm::mix(height, mask, 0.5f);
+			height *= mask;
+
+			if (i > (sidelength-4) || j > (sidelength-4)) {
+				image[index++] = 0.f;
+			} else {
+				image[index++] = height * 255.f;
+			}
+		}
+	}
+}
 /* 
  * preset: Mountains
  * noise type: Cellular
@@ -123,6 +203,7 @@ struct rawimage gen_occlusmap(const struct rawimage *heightmap)
  * gradient perturb amp: 50
  * frequency: 0.002
  */
+/*
 void terrain_image(unsigned char *image, size_t sidelength, long seed, float freq)
 {
 	FastNoise cellnoise;
@@ -137,10 +218,58 @@ void terrain_image(unsigned char *image, size_t sidelength, long seed, float fre
 	fractnoise.SetSeed(seed);
 	fractnoise.SetNoiseType(FastNoise::SimplexFractal);
 	fractnoise.SetFractalType(FastNoise::RigidMulti);
-	fractnoise.SetFrequency(0.2f * freq);
+	fractnoise.SetFrequency(0.01f);
 	fractnoise.SetFractalOctaves(6);
 	fractnoise.SetFractalLacunarity(2.0f);
-	fractnoise.SetGradientPerturbAmp(50.f);
+	fractnoise.SetGradientPerturbAmp(20.f);
+
+	FastNoise mask;
+	mask.SetSeed(seed);
+	mask.SetNoiseType(FastNoise::SimplexFractal);
+	mask.SetFractalType(FastNoise::Billow);
+	mask.SetFrequency(0.0005f);
+	mask.SetFractalOctaves(2);
+	mask.SetFractalLacunarity(2.0f);
+	mask.SetGradientPerturbAmp(30.f);
+
+	float max = 1.f;
+	for (int i = 0; i < sidelength; i++) {
+		for (int j = 0; j < sidelength; j++) {
+			float x = i; float y = j;
+			cellnoise.GradientPerturb(x, y);
+			float val = cellnoise.GetNoise(x, y);
+			if (val > max) { max = val; }
+		}
+	}
+
+	unsigned int index = 0;
+	for (int i = 0; i < sidelength; i++) {
+		for (int j = 0; j < sidelength; j++) {
+			float x = i; float y = j;
+			mask.GradientPerturbFractal(x, y);
+			float val = mask.GetNoise(x, y);
+			val = (val + 1.f) / 2.f;
+
+			x = i; y = j;
+			cellnoise.GradientPerturbFractal(x, y);
+			float cell = cellnoise.GetNoise(x, y);
+			cell = cell * (1.f / max);
+
+			x = i; y = j;
+			fractnoise.GradientPerturbFractal(x, y);
+			float fract = fractnoise.GetNoise(x, y);
+			fract = (fract + 1.f) / 2.f;
+
+			val = glm::mix(val, cell, 0.4);
+			val = glm::mix(val, fract, 0.05);
+
+			if (i > (sidelength-4) || j > (sidelength-4)) {
+				image[index++] = 0.f;
+			} else {
+				image[index++] = val * 255.f;
+			}
+		}
+	}
 
 	float max = 1.f;
 	for (int i = 0; i < sidelength; i++) {
@@ -168,7 +297,21 @@ void terrain_image(unsigned char *image, size_t sidelength, long seed, float fre
 
 			val = glm::clamp(float(val), 0.f, 1.f);
 			val = 0.5 * (val + fract);
-			image[index++] = val * 255.f;
+
+			//float dist = glm::distance(glm::vec2(float(i), float(j)), glm::vec2(512.f, 512.f));
+			float dist = (x / float(sidelength));
+			//dist /= float(sidelength);
+			dist = glm::smoothstep(0.6f, 0.7f, dist);
+			float mask = dist > 0.6f ? dist : 0.6f;
+			//float mask = dist;
+			val *= mask;
+
+			if (i > (sidelength-4) || j > (sidelength-4)) {
+				image[index++] = 0.f;
+			} else {
+				image[index++] = val * 255.f;
+			}
 		}
 	}
 }
+*/

@@ -209,4 +209,5 @@ void main(void)
 	fcolor = vec4(color, 1.0);
 	float gamma = 1.6;
 	fcolor.rgb = pow(fcolor.rgb, vec3(1.0/gamma));
+	//fcolor.rgb = vec3(height, height, height);
 }
