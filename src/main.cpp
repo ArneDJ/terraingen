@@ -29,7 +29,7 @@
 
 #define GRASS_DENSITY 500000
 #define TREES_DENSITY 50000
-#define FOG_DENSITY 0.025f
+#define FOG_DENSITY 0.015f
 #define SHADOW_TEXTURE_SIZE 4096
 
 Shader base_shader(void)

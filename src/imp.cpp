@@ -22,7 +22,7 @@ static inline float sample_height(int x, int y, const struct rawimage *image)
 
 static glm::vec3 filter_normal(int x, int y, const struct rawimage *image)
 {
-	const float strength = 64.f; // sobel filter strength
+	const float strength = 32.f; // sobel filter strength
 
 	float T = sample_height(x, y + 1, image);
 	float TR = sample_height(x + 1, y + 1, image);
@@ -109,17 +109,17 @@ struct rawimage gen_occlusmap(const struct rawimage *heightmap)
 
 void terrain_image(unsigned char *image, size_t sidelength, long seed, float freq)
 {
-	seed = 1337;
+	seed = 404;
 
-	// billow
-	FastNoise noise;
-	noise.SetSeed(seed);
-	noise.SetNoiseType(FastNoise::SimplexFractal);
-	noise.SetFractalType(FastNoise::Billow);
-	noise.SetFrequency(0.001f);
-	noise.SetFractalOctaves(6);
-	noise.SetFractalLacunarity(2.0f);
-	noise.SetGradientPerturbAmp(20.f);
+	// detail
+	FastNoise billow;
+	billow.SetSeed(seed);
+	billow.SetNoiseType(FastNoise::SimplexFractal);
+	billow.SetFractalType(FastNoise::Billow);
+	billow.SetFrequency(0.02f);
+	billow.SetFractalOctaves(6);
+	billow.SetFractalLacunarity(2.0f);
+	billow.SetGradientPerturbAmp(40.f);
 
 	// ridges
 	FastNoise cellnoise;
@@ -130,15 +130,18 @@ void terrain_image(unsigned char *image, size_t sidelength, long seed, float fre
 	cellnoise.SetCellularReturnType(FastNoise::Distance2Add);
 	cellnoise.SetGradientPerturbAmp(30.f);
 
-	// detail
-	FastNoise rigid;
-	rigid.SetSeed(seed);
-	rigid.SetNoiseType(FastNoise::SimplexFractal);
-	rigid.SetFractalType(FastNoise::RigidMulti);
-	rigid.SetFrequency(0.002f);
-	rigid.SetFractalOctaves(6);
-	rigid.SetFractalLacunarity(2.0f);
-	rigid.SetGradientPerturbAmp(30.f);
+	// mask perturb
+	FastNoise perturb;
+	perturb.SetSeed(seed);
+	perturb.SetNoiseType(FastNoise::SimplexFractal);
+	perturb.SetFractalType(FastNoise::FBM);
+	perturb.SetFrequency(0.002f);
+	perturb.SetFractalOctaves(5);
+	perturb.SetFractalLacunarity(2.0f);
+	perturb.SetGradientPerturbAmp(300.f);
+
+	const float mountain_amp = 1.0f;
+	const float field_amp = 0.2f;
 
 	float max = 1.f;
 	for (int i = 0; i < sidelength; i++) {
@@ -155,28 +158,24 @@ void terrain_image(unsigned char *image, size_t sidelength, long seed, float fre
 	for (int i = 0; i < sidelength; i++) {
 		for (int j = 0; j < sidelength; j++) {
 			float x = i; float y = j;
-			noise.GradientPerturbFractal(x, y);
-			float billow = (noise.GetNoise(x, y) + 1.f) / 2.f;
+			billow.GradientPerturbFractal(x, y);
+			float detail = 1.f - (billow.GetNoise(x, y) + 1.f) / 2.f;
 
 			x = i; y = j;
 			cellnoise.GradientPerturbFractal(x, y);
 			float ridge = cellnoise.GetNoise(x, y) / max;
 
 			x = i; y = j;
-			rigid.GradientPerturbFractal(x, y);
-			float detail = 1.f - ((rigid.GetNoise(x, y) + 1.f) / 2.f);
+			perturb.GradientPerturbFractal(x, y);
 
-			float height = ridge;
-			//float height = glm::mix(billow, ridge, 0.6f);
+			// add detail
+			float height = glm::mix(detail, ridge, 0.9f);
 
-			float mask = glm::distance(center, glm::vec2(float(i), float(j))) / float(0.5f*sidelength);
-			mask = glm::smoothstep(0.5f, 0.8f, mask);
-			//mask = glm::clamp(0.5f, 1.f, mask);
-			mask = glm::clamp(mask, 0.2f, 1.f);
+			// aply mask
+			float mask = glm::distance(center, glm::vec2(float(x), float(y))) / float(0.5f*sidelength);
+			mask = glm::smoothstep(0.4f, 0.8f, mask);
+			mask = glm::clamp(mask, field_amp, mountain_amp);
 
-			//height = glm::mix(height, detail, 0.4f);
-
-			//height = glm::mix(height, mask, 0.5f);
 			height *= mask;
 
 			if (i > (sidelength-4) || j > (sidelength-4)) {
@@ -204,8 +203,6 @@ void terrain_image(unsigned char *image, size_t sidelength, long seed, float fre
  * frequency: 0.002
  */
 /*
-void terrain_image(unsigned char *image, size_t sidelength, long seed, float freq)
-{
 	FastNoise cellnoise;
 	cellnoise.SetSeed(seed);
 	cellnoise.SetNoiseType(FastNoise::Cellular);
@@ -231,87 +228,4 @@ void terrain_image(unsigned char *image, size_t sidelength, long seed, float fre
 	mask.SetFractalOctaves(2);
 	mask.SetFractalLacunarity(2.0f);
 	mask.SetGradientPerturbAmp(30.f);
-
-	float max = 1.f;
-	for (int i = 0; i < sidelength; i++) {
-		for (int j = 0; j < sidelength; j++) {
-			float x = i; float y = j;
-			cellnoise.GradientPerturb(x, y);
-			float val = cellnoise.GetNoise(x, y);
-			if (val > max) { max = val; }
-		}
-	}
-
-	unsigned int index = 0;
-	for (int i = 0; i < sidelength; i++) {
-		for (int j = 0; j < sidelength; j++) {
-			float x = i; float y = j;
-			mask.GradientPerturbFractal(x, y);
-			float val = mask.GetNoise(x, y);
-			val = (val + 1.f) / 2.f;
-
-			x = i; y = j;
-			cellnoise.GradientPerturbFractal(x, y);
-			float cell = cellnoise.GetNoise(x, y);
-			cell = cell * (1.f / max);
-
-			x = i; y = j;
-			fractnoise.GradientPerturbFractal(x, y);
-			float fract = fractnoise.GetNoise(x, y);
-			fract = (fract + 1.f) / 2.f;
-
-			val = glm::mix(val, cell, 0.4);
-			val = glm::mix(val, fract, 0.05);
-
-			if (i > (sidelength-4) || j > (sidelength-4)) {
-				image[index++] = 0.f;
-			} else {
-				image[index++] = val * 255.f;
-			}
-		}
-	}
-
-	float max = 1.f;
-	for (int i = 0; i < sidelength; i++) {
-		for (int j = 0; j < sidelength; j++) {
-			float x = i; float y = j;
-			cellnoise.GradientPerturb(x, y);
-			float val = cellnoise.GetNoise(x, y);
-			if (val > max) { max = val; }
-		}
-	}
-
-	unsigned int index = 0;
-	for (int i = 0; i < sidelength; i++) {
-		for (int j = 0; j < sidelength; j++) {
-			float x = i; float y = j;
-			cellnoise.GradientPerturb(x, y);
-			float val = cellnoise.GetNoise(x, y);
-			val = val * (1.f / max);
-
-			x = i; y = j;
-			fractnoise.GradientPerturb(x, y);
-			float fract = fractnoise.GetNoise(x, y);
-			fract = (fract + 1.f) / 2.f;
-			fract = glm::clamp(float(fract), 0.f, 1.f); 
-
-			val = glm::clamp(float(val), 0.f, 1.f);
-			val = 0.5 * (val + fract);
-
-			//float dist = glm::distance(glm::vec2(float(i), float(j)), glm::vec2(512.f, 512.f));
-			float dist = (x / float(sidelength));
-			//dist /= float(sidelength);
-			dist = glm::smoothstep(0.6f, 0.7f, dist);
-			float mask = dist > 0.6f ? dist : 0.6f;
-			//float mask = dist;
-			val *= mask;
-
-			if (i > (sidelength-4) || j > (sidelength-4)) {
-				image[index++] = 0.f;
-			} else {
-				image[index++] = val * 255.f;
-			}
-		}
-	}
-}
 */
