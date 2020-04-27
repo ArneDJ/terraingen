@@ -119,13 +119,13 @@ GLuint Shader::substitute(void)
 		"\n"
 		"uniform mat4 project, view, model;\n"
 		"\n"
-		"layout (location = 0) in vec4 position;\n"
+		"layout (location = 0) in vec3 position;\n"
 		"layout (location = 1) in vec3 normal;\n"
 		"layout (location = 2) in vec2 uv;\n"
 		"\n"
 		"void main(void)\n"
 		"{\n"
-		" gl_Position = project * view * model * position;\n"
+		" gl_Position = project * view * model * vec4(position, 1.0);\n"
 		"}\n"
 	};
 

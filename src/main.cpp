@@ -35,18 +35,14 @@
 Shader base_shader(void)
 {
 	struct shaderinfo pipeline[] = {
-		{GL_VERTEX_SHADER, "shaders/basev.glsl"},
-		{GL_FRAGMENT_SHADER, "shaders/basef.glsl"},
+		{GL_VERTEX_SHADER, "shaders/base.vert"},
+		{GL_FRAGMENT_SHADER, "shaders/base.frag"},
 		{GL_NONE, NULL}
 	};
 
 	Shader shader(pipeline);
 
 	shader.bind();
-
-	const float aspect = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
-	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR_CLIP, FAR_CLIP);
-	shader.uniform_mat4("project", project);
 
 	glm::mat4 model = glm::mat4(1.f);
 	shader.uniform_mat4("model", model);
@@ -59,18 +55,14 @@ Shader base_shader(void)
 Shader grass_shader(void)
 {
 	struct shaderinfo pipeline[] = {
-		{GL_VERTEX_SHADER, "shaders/grassv.glsl"},
-		{GL_FRAGMENT_SHADER, "shaders/grassf.glsl"},
+		{GL_VERTEX_SHADER, "shaders/grass.vert"},
+		{GL_FRAGMENT_SHADER, "shaders/grass.frag"},
 		{GL_NONE, NULL}
 	};
 
 	Shader shader(pipeline);
 
 	shader.bind();
-
-	const float aspect = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
-	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR_CLIP, FAR_CLIP);
-	shader.uniform_mat4("project", project);
 
 	glm::mat4 model = glm::mat4(1.f);
 	shader.uniform_mat4("model", model);
@@ -80,21 +72,17 @@ Shader grass_shader(void)
 	return shader;
 }
 
-Shader tree_shader(void)
+Shader distant_tree_shader(void)
 {
 	struct shaderinfo pipeline[] = {
-		{GL_VERTEX_SHADER, "shaders/treev.glsl"},
-		{GL_FRAGMENT_SHADER, "shaders/treef.glsl"},
+		{GL_VERTEX_SHADER, "shaders/distant_tree.vert"},
+		{GL_FRAGMENT_SHADER, "shaders/distant_tree.frag"},
 		{GL_NONE, NULL}
 	};
 
 	Shader shader(pipeline);
 
 	shader.bind();
-
-	const float aspect = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
-	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR_CLIP, FAR_CLIP);
-	shader.uniform_mat4("project", project);
 
 	glm::mat4 model = glm::mat4(1.f);
 	shader.uniform_mat4("model", model);
@@ -107,10 +95,10 @@ Shader tree_shader(void)
 Shader terrain_shader(void)
 {
 	struct shaderinfo pipeline[] = {
-		{GL_VERTEX_SHADER, "shaders/terrainv.glsl"},
-		{GL_TESS_CONTROL_SHADER, "shaders/terraintc.glsl"},
-		{GL_TESS_EVALUATION_SHADER, "shaders/terrainte.glsl"},
-		{GL_FRAGMENT_SHADER, "shaders/terrainf.glsl"},
+		{GL_VERTEX_SHADER, "shaders/terrain.vert"},
+		{GL_TESS_CONTROL_SHADER, "shaders/terrain.tesc"},
+		{GL_TESS_EVALUATION_SHADER, "shaders/terrain.tese"},
+		{GL_FRAGMENT_SHADER, "shaders/terrain.frag"},
 		{GL_NONE, NULL}
 	};
 
@@ -118,9 +106,6 @@ Shader terrain_shader(void)
 
 	shader.bind();
 
-	const float aspect = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
-	glm::mat4 project = glm::perspective(glm::radians(FOV), aspect, NEAR_CLIP, FAR_CLIP);
-	shader.uniform_mat4("project", project);
 	shader.uniform_vec3("fogcolor", glm::vec3(0.46, 0.7, 0.99));
 	shader.uniform_float("fogfactor", FOG_DENSITY);
 
@@ -130,8 +115,8 @@ Shader terrain_shader(void)
 Shader skybox_shader(void)
 {
 	struct shaderinfo pipeline[] = {
-		{GL_VERTEX_SHADER, "shaders/skyboxv.glsl"},
-		{GL_FRAGMENT_SHADER, "shaders/skyboxf.glsl"},
+		{GL_VERTEX_SHADER, "shaders/skybox.vert"},
+		{GL_FRAGMENT_SHADER, "shaders/skybox.frag"},
 		{GL_NONE, NULL}
 	};
 
@@ -149,8 +134,8 @@ Shader skybox_shader(void)
 Shader shadow_shader(void)
 {
 	struct shaderinfo pipeline[] = {
-	{GL_VERTEX_SHADER, "shaders/depthmapv.glsl"},
-	{GL_FRAGMENT_SHADER, "shaders/depthmapf.glsl"},
+	{GL_VERTEX_SHADER, "shaders/depthmap.vert"},
+	{GL_FRAGMENT_SHADER, "shaders/depthmap.frag"},
 	{GL_NONE, NULL}
 	};
 
@@ -181,7 +166,7 @@ void run_terraingen(SDL_Window *window)
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 
 	Shader base = base_shader();
-	Shader woods = tree_shader();
+	Shader woods = distant_tree_shader();
 	Shader undergrowth = grass_shader();
 	Shader terra = terrain_shader();
 	Shader sky = skybox_shader();
@@ -192,7 +177,6 @@ void run_terraingen(SDL_Window *window)
 	Shadow shadow {
 		SHADOW_TEXTURE_SIZE,
 	};
-	
 
 	Terrain terrain { 64, 32.f, 256.f };
 	terrain.genheightmap(1024, 0.01);
@@ -207,6 +191,7 @@ void run_terraingen(SDL_Window *window)
 		terrain.occlusmap
 	};
 
+	gltf::Model tree_close { "media/models/tree.glb" };
 	gltf::Model model { "media/models/dragon.glb" };
 	gltf::Model duck { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
 	gltf::Model brainstem { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
@@ -275,8 +260,9 @@ void run_terraingen(SDL_Window *window)
 			depthpass.bind();
 			for (int i = 0; i < shadow.CASCADE_COUNT; i++) {
 				shadow.binddepth(i);
-				depthpass.uniform_mat4("view_projection", shadow.shadowspace[i]);
+				depthpass.uniform_mat4("VIEW_PROJECT", shadow.shadowspace[i]);
 				depthpass.uniform_bool("instanced", false);
+				tree_close.display(&depthpass, glm::vec3(1020.f, 50.f, 1020.f), 1.f);
 				model.display(&depthpass, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
 				duck.display(&depthpass, glm::vec3(970.f, 50.f, 970.f), 5.f);
 				brainstem.display(&depthpass, glm::vec3(1091.f, 40.f, 936.f), 1.f);
@@ -293,11 +279,12 @@ void run_terraingen(SDL_Window *window)
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 
-		terra.uniform_mat4("view", cam.view);
+		const glm::mat4 VIEW_PROJECT = cam.project * cam.view;
 		sky.uniform_mat4("view", cam.view);
-		undergrowth.uniform_mat4("view", cam.view);
-		woods.uniform_mat4("view", cam.view);
-		base.uniform_mat4("view", cam.view);
+		terra.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
+		undergrowth.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
+		woods.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
+		base.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 
 		terra.bind();
 		terra.uniform_float("amplitude", terrain.amplitude);
@@ -314,7 +301,6 @@ void run_terraingen(SDL_Window *window)
 		shadow.bindtextures(GL_TEXTURE10);
 		terrain.display();
 
-
 		woods.bind();
 		woods.uniform_float("mapscale", 1.f / terrain.sidelength);
 		woods.uniform_vec3("camerapos", cam.eye);
@@ -322,6 +308,7 @@ void run_terraingen(SDL_Window *window)
 		activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, tree_texture);
 		glBindVertexArray(tree.VAO);
 		glDrawElementsInstanced(tree.mode, tree.ecount, GL_UNSIGNED_SHORT, NULL, instancecount);
+		tree_close.display(&base, glm::vec3(1020.f, 50.f, 1020.f), 1.f);
 		glEnable(GL_CULL_FACE);
 
 		model.display(&base, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
