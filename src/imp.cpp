@@ -140,8 +140,8 @@ void terrain_image(unsigned char *image, size_t sidelength, long seed, float fre
 	perturb.SetFractalLacunarity(2.0f);
 	perturb.SetGradientPerturbAmp(300.f);
 
-	const float mountain_amp = 1.0f;
-	const float field_amp = 0.2f;
+	const float mountain_amp = 0.8f; // best values between 0.4 and 1.0
+	const float field_amp = 0.3f; // best values between 0.2 and 0.4
 
 	float max = 1.f;
 	for (int i = 0; i < sidelength; i++) {

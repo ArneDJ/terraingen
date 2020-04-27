@@ -89,7 +89,7 @@ void Shadow::update(const Camera *cam, glm::vec3 lightpos)
 
 	// Calculate split depths based on view camera furstum
 	// Based on method presentd in https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
-	const float lambda = 0.55f;
+	const float lambda = 0.95f;
 	for (uint32_t i = 0; i < CASCADE_COUNT; i++) {
 		float p = (i + 1) / static_cast<float>(CASCADE_COUNT);
 		float log = min_z * std::pow(ratio, p);

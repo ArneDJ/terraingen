@@ -324,21 +324,25 @@ void instance_static_VAO(GLuint VAO, std::vector<glm::mat4> *transforms)
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::mat4), transforms->data(), GL_STATIC_DRAW);
 
+	const GLuint ATTRIB_START_LOC = 5;
+
 	for (int i = 0; i < amount; i++) {
 		size_t size = 4 * sizeof(float);
 
-		glEnableVertexAttribArray(3);
-		glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * size, BUFFER_OFFSET(0));
+		glEnableVertexAttribArray(ATTRIB_START_LOC);
+		glVertexAttribPointer(ATTRIB_START_LOC, 4, GL_FLOAT, GL_FALSE, 4 * size, BUFFER_OFFSET(0));
 
-		glEnableVertexAttribArray(4);
-		glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * size, BUFFER_OFFSET(size));
-		glEnableVertexAttribArray(5);
-		glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * size, BUFFER_OFFSET(2 * size)); glEnableVertexAttribArray(6); glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * size, BUFFER_OFFSET(3 * size));
+		glEnableVertexAttribArray(ATTRIB_START_LOC+1);
+		glVertexAttribPointer(ATTRIB_START_LOC+1, 4, GL_FLOAT, GL_FALSE, 4 * size, BUFFER_OFFSET(size));
+		glEnableVertexAttribArray(ATTRIB_START_LOC+2);
+		glVertexAttribPointer(ATTRIB_START_LOC+2, 4, GL_FLOAT, GL_FALSE, 4 * size, BUFFER_OFFSET(2 * size)); 
+		glEnableVertexAttribArray(ATTRIB_START_LOC+3); 
+		glVertexAttribPointer(ATTRIB_START_LOC+3, 4, GL_FLOAT, GL_FALSE, 4 * size, BUFFER_OFFSET(3 * size));
 
-		glVertexAttribDivisor(3, 1);
-		glVertexAttribDivisor(4, 1);
-		glVertexAttribDivisor(5, 1);
-		glVertexAttribDivisor(6, 1);
+		glVertexAttribDivisor(ATTRIB_START_LOC, 1);
+		glVertexAttribDivisor(ATTRIB_START_LOC+1, 1);
+		glVertexAttribDivisor(ATTRIB_START_LOC+2, 1);
+		glVertexAttribDivisor(ATTRIB_START_LOC+3, 1);
 
 		glBindVertexArray(0);
 	}
