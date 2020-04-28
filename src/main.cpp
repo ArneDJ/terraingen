@@ -179,10 +179,11 @@ void run_terraingen(SDL_Window *window)
 	};
 
 	Terrain terrain { 64, 32.f, 256.f };
-	terrain.genheightmap(1024, 0.01);
+	terrain.genheightmap(1024, 1.f);
 	terrain.gennormalmap();
 	terrain.genocclusmap();
 
+/*
 	Grass grass {
 		&terrain, 
 		GRASS_DENSITY, 
@@ -190,42 +191,15 @@ void run_terraingen(SDL_Window *window)
 		terrain.normalmap, 
 		terrain.occlusmap
 	};
+*/
+	const size_t INSTANCE_COUNT = 2500;
+	struct mesh dynamic_quads = gen_cardinal_quads();
+	GLuint buffer = instance_dynamic_VAO(dynamic_quads.VAO, INSTANCE_COUNT);
 
 	gltf::Model tree_close { "media/models/tree.glb" };
 	gltf::Model model { "media/models/dragon.glb" };
 	gltf::Model duck { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
 	gltf::Model brainstem { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
-
-	struct mesh tree = gen_cardinal_quads();
-	GLuint tree_texture = load_DDS_texture("media/textures/tree.dds");
-
-	const float invratio = 1.f / terrain.mapratio;
-	const float minpos = 0.f; // max grass position
-	const float maxpos = 1.f * (invratio * terrain.sidelength); // min grass position
-
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_real_distribution<> dis(0.f, 1.57f);
-	std::uniform_real_distribution<> size(5.f, 7.f);
-	std::uniform_real_distribution<> map(minpos, maxpos);
-
-	std::vector<glm::mat4> transforms;
-	transforms.reserve(TREES_DENSITY);
-	for (int i = 0; i < TREES_DENSITY; i++) {
-		float x = map(gen);
-		float z = map(gen);
-		float y = terrain.sampleheight(x, z);
-		if (terrain.sampleslope(x, z) < 0.6 && y < 0.3) {
-			float angle = dis(gen);
-			glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(x*terrain.mapratio, terrain.amplitude*y+dis(gen)+4.f, z*terrain.mapratio));
-			glm::mat4 R = glm::rotate(angle, glm::vec3(0.0, 1.0, 0.0));
-			glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(3.f, size(gen), 3.f));
-			transforms.push_back(T * R * S);
-		}
-	}
-	size_t instancecount = transforms.size();
-	transforms.resize(instancecount);
-	instance_static_VAO(tree.VAO, &transforms);
 
 	Camera cam { 
 		glm::vec3(1024.f, 128.f, 1024.f),
@@ -266,12 +240,6 @@ void run_terraingen(SDL_Window *window)
 				model.display(&depthpass, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
 				duck.display(&depthpass, glm::vec3(970.f, 50.f, 970.f), 5.f);
 				brainstem.display(&depthpass, glm::vec3(1091.f, 40.f, 936.f), 1.f);
-				depthpass.uniform_bool("instanced", true);
-				glDisable(GL_CULL_FACE);
-				activate_texture(GL_TEXTURE0, GL_TEXTURE_2D, tree_texture);
-				glBindVertexArray(tree.VAO);
-				glDrawElementsInstanced(tree.mode, tree.ecount, GL_UNSIGNED_SHORT, NULL, instancecount);
-				glEnable(GL_CULL_FACE);
 			}
 			shadow.disable();
 		}
@@ -285,6 +253,8 @@ void run_terraingen(SDL_Window *window)
 		undergrowth.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		woods.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		base.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
+		base.uniform_vec3("camerapos", cam.eye);
+		base.uniform_vec3("viewdir", cam.center);
 
 		terra.bind();
 		terra.uniform_float("amplitude", terrain.amplitude);
@@ -301,16 +271,6 @@ void run_terraingen(SDL_Window *window)
 		shadow.bindtextures(GL_TEXTURE10);
 		terrain.display();
 
-		woods.bind();
-		woods.uniform_float("mapscale", 1.f / terrain.sidelength);
-		woods.uniform_vec3("camerapos", cam.eye);
-		glDisable(GL_CULL_FACE);
-		activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, tree_texture);
-		glBindVertexArray(tree.VAO);
-		glDrawElementsInstanced(tree.mode, tree.ecount, GL_UNSIGNED_SHORT, NULL, instancecount);
-		tree_close.display(&base, glm::vec3(1020.f, 50.f, 1020.f), 1.f);
-		glEnable(GL_CULL_FACE);
-
 		model.display(&base, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
 		duck.display(&base, glm::vec3(970.f, 50.f, 970.f), 5.f);
 		brainstem.display(&base, glm::vec3(1091.f, 40.f, 936.f), 1.f);
@@ -318,12 +278,33 @@ void run_terraingen(SDL_Window *window)
 		sky.bind();
 		skybox.display();
 
-		/*
+		glBindBuffer(GL_ARRAY_BUFFER, buffer);
+		glm::mat4 *matrices = (glm::mat4 *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+		int index = 0;
+		for (int i = 0; i < 50; i++) {
+			float a = 50.f * float(i) / 4.f;
+			float b = 50.f * float(i) / 5.f;
+			for (int j = 0; j < 50; j++) {
+				float c = 50.f * float(j) / 6.f;
+				glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1000.f+a, 128.f+20*sin(start+b), 1000.f+c));
+				glm::mat4 R = glm::rotate(start, glm::vec3(0.0, 1.0, 0.0));
+				matrices[index++] = T * R;
+			}
+
+		}
+		glUnmapBuffer(GL_ARRAY_BUFFER);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 		undergrowth.bind();
 		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);
 		undergrowth.uniform_vec3("camerapos", cam.eye);
+	glDisable(GL_CULL_FACE);
+	glBindVertexArray(dynamic_quads.VAO);
+	glDrawElementsInstanced(dynamic_quads.mode, dynamic_quads.ecount, GL_UNSIGNED_SHORT, NULL, INSTANCE_COUNT);
+	glEnable(GL_CULL_FACE);
+/*
 		grass.display();
-		*/
+*/
 
 		SDL_GL_SwapWindow(window);
 		end = start;

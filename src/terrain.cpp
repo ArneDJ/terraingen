@@ -106,8 +106,8 @@ float Terrain::sampleslope(float x, float z) const
 Grass::Grass(const Terrain *ter, size_t density, GLuint texturebind, GLuint norm, GLuint occlus)
 {
 	const float invratio = 1.f / ter->mapratio;
-	const float minpos = 0.25f * (invratio * ter->sidelength); // max grass position
-	const float maxpos = 0.75f * (invratio * ter->sidelength); // min grass position
+	const float minpos = 0.35f * (invratio * ter->sidelength); // max grass position
+	const float maxpos = 0.65f * (invratio * ter->sidelength); // min grass position
 
 	quads = gen_cardinal_quads();
 	texture = texturebind;
@@ -116,7 +116,7 @@ Grass::Grass(const Terrain *ter, size_t density, GLuint texturebind, GLuint norm
 
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	std::uniform_real_distribution<> dis(0.f, 1.57f);
+	std::uniform_real_distribution<> dis(0.f, 1.1f);
 	std::uniform_real_distribution<> map(minpos, maxpos);
 
 	std::vector<glm::mat4> transforms;
@@ -129,8 +129,8 @@ Grass::Grass(const Terrain *ter, size_t density, GLuint texturebind, GLuint norm
 			float angle = dis(gen);
 			glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(x*ter->mapratio, ter->amplitude*y+dis(gen), z*ter->mapratio));
 			glm::mat4 R = glm::rotate(angle, glm::vec3(0.0, 1.0, 0.0));
-			glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(6.f, 2.f, 6.f));
-			transforms.push_back(T * R * S);
+			//glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(3.f, 1.f, 3.f));
+			transforms.push_back(T * R);
 		}
 	}
 	instancecount = transforms.size();

@@ -350,3 +350,27 @@ void instance_static_VAO(GLuint VAO, std::vector<glm::mat4> *transforms)
 	glDeleteBuffers(1, &VBO);
 }
 
+GLuint instance_dynamic_VAO(GLuint VAO, size_t instancecount)
+{
+	glBindVertexArray(VAO);
+
+	GLuint buffer;
+	glGenBuffers(1, &buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+
+	glBufferData(GL_ARRAY_BUFFER, instancecount * sizeof(glm::mat4), NULL, GL_DYNAMIC_DRAW);
+
+	// loop over each column of the matrix
+	const GLuint MATRIX_LOC = 5;
+	//size_t row_size = 4 * sizeof(float);
+	for (int i = 0; i < 4; i++) {
+		glVertexAttribPointer(MATRIX_LOC + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void *)(sizeof(glm::vec4) * i));
+		glEnableVertexAttribArray(MATRIX_LOC + i);
+		// make it instanced
+		glVertexAttribDivisor(MATRIX_LOC + i, 1);
+	}
+
+	return buffer;
+}
+
+

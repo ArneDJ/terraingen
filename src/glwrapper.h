@@ -26,3 +26,5 @@ void activate_texture(GLenum unit, GLenum target, GLuint texture);
 GLuint load_TGA_cubemap(const char *fpath[6]);
 
 void instance_static_VAO(GLuint VAO, std::vector<glm::mat4> *transforms);
+
+GLuint instance_dynamic_VAO(GLuint VAO, size_t instancecount);

@@ -176,11 +176,11 @@ void main(void)
 
 	float slope = 1.0 - normal.y;
 
-	vec3 detail = texture(detailmap, fragment.texcoord*0.02).rgb;
+	vec3 detail = texture(detailmap, fragment.texcoord*0.01).rgb;
 	detail  = (detail * 2.0) - 1.0;
 	detail = vec3(detail.x, detail.z, detail.y);
 
-	normal = normalize((slope * detail) + normal);
+	normal = normalize((0.5 * detail) + normal);
 
 	material mat = material(
 		texture(grassmap, 0.1*fragment.texcoord).rgb,

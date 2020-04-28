@@ -84,6 +84,7 @@ void Shadow::update(const Camera *cam, glm::vec3 lightpos)
 	const float ratio = max_z / min_z;
 
 	const glm::mat4 camera_perspective = cam->project;
+	const float PERSPECTIVE_OFFSET = 500.f;
 
 	float splits[CASCADE_COUNT];
 
@@ -93,10 +94,15 @@ void Shadow::update(const Camera *cam, glm::vec3 lightpos)
 	for (uint32_t i = 0; i < CASCADE_COUNT; i++) {
 		float p = (i + 1) / static_cast<float>(CASCADE_COUNT);
 		float log = min_z * std::pow(ratio, p);
+		//float log = 1.f;
 		float uniform = min_z + range * p;
 		float d = lambda * (log - uniform) + uniform;
 		splits[i] = ((d - near) / cliprange);
 	}
+	splits[0] = 0.02;
+	splits[1] = 0.1;
+	splits[2] = 0.2;
+	splits[3] = 1.0;
 
 	// Calculate orthographic projection matrix for each cascade
 	float last_split = 0.f;
@@ -146,7 +152,7 @@ void Shadow::update(const Camera *cam, glm::vec3 lightpos)
 
 		glm::vec3 lightdir = normalize(lightpos);
 		glm::mat4 lightview = glm::lookAt(center + lightdir * -min_extents.z, center, glm::vec3(0.0f, 1.0f, 0.0f));
-		glm::mat4 lightortho = glm::ortho(min_extents.x, max_extents.x, min_extents.y, max_extents.y, 0.0f, max_extents.z - min_extents.z);
+		glm::mat4 lightortho = glm::ortho(min_extents.x, max_extents.x, min_extents.y, max_extents.y, 0.0f - PERSPECTIVE_OFFSET, max_extents.z - min_extents.z + PERSPECTIVE_OFFSET);
 
 		// Store split distance and matrix in cascade
 		splitdepth[i] = (0.1f + split_dist * cliprange);

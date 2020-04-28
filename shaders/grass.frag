@@ -34,13 +34,13 @@ void main(void)
 	const vec3 viewspace = vec3(distance(fragment.position.x, camerapos.x), distance(fragment.position.y, camerapos.y), distance(fragment.position.z, camerapos.z));
 
 	color = texture(basemap, fragment.texcoord);
-	if(color.a < 0.5) { discard; }
+	//if(color.a < 0.5) { discard; }
 
-	float dist = distance(camerapos, fragment.position);
-	float blending = 1.0 / (0.03*dist);
-	color.a *= blending;
-	if (color.a < 0.1) { discard; }
-	if (color.a > 0.6) { color.a = 0.6; }
+	//float dist = distance(camerapos, fragment.position);
+	//float blending = 1.0 / (0.03*dist);
+	//color.a *= blending;
+	//if (color.a < 0.1) { discard; }
+	//if (color.a > 0.6) { color.a = 0.6; }
 
 	color.rgb *= texture(occlusmap, mapscale * fragment.position.xz).r;
 
@@ -55,6 +55,7 @@ void main(void)
 	color.rgb = fog(color.rgb, length(viewspace), 0.007 * fragment.position.y);
 
 	float gamma = 1.6;
-	color.rgb = pow(color.rgb, vec3(1.0/gamma));
+	//color.rgb = pow(color.rgb, vec3(1.0/gamma));
+	color = vec4(1.0, 0.0, 0.0, 1.0);
 }
 

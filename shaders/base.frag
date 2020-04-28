@@ -2,12 +2,13 @@
 
 out vec4 fcolor;
 
-layout(binding = 0) uniform sampler2D base;
+layout(binding = 0) uniform sampler2D basemap;
 layout(binding = 1) uniform sampler2D metallicroughness;
 layout(binding = 2) uniform sampler2D normalmap;
 
 uniform vec3 basedcolor;
-uniform vec3 campos;
+uniform vec3 camerapos;
+uniform vec3 viewdir;
 uniform vec3 lightcolor = vec3(300.0, 300.0, 300.0);
 
 in VERTEX {
@@ -47,11 +48,27 @@ vec3 perturb_normal( vec3 N, vec3 V, vec2 texcoord )
 
 void main(void)
 {
-	vec4 basecolor = texture(base, fragment.texcoord);
-	if (basecolor.a < 0.5) { discard; }
+	//const vec3 viewdirection = normalize(campos - fragment.position);
+	const vec3 lightdirection = vec3(0.2, 0.5, 0.5);
+	//const vec3 halfvector = normalize(lightdirection + viewdirection);
+	const vec3 ambient = vec3(0.5, 0.5, 0.5);
+	const vec3 lightcolor = vec3(1.0, 0.9, 0.8);
+	const float strength = 0.5;
 
-	fcolor = vec4(basecolor.rgb, 1.0);
-	//fcolor = vec4(1.0, 0.0, 0.0, 1.0);
+	fcolor = texture(basemap, fragment.texcoord);
+	fcolor.rgb += basedcolor;
+	if (fcolor.a < 0.5) { discard; }
+
+	float diffuse = max(0.0, dot(fragment.normal, lightdirection));
+
+	vec3 scatteredlight = ambient + lightcolor * diffuse;
+
+	vec3 rgb = min(fcolor.rgb * scatteredlight, vec3(1.0));
+
+	fcolor = vec4(rgb, fcolor.a);
+	float gamma = 1.6;
+	fcolor.rgb = pow(fcolor.rgb, vec3(1.0/gamma));
+
 
 	//float gamma = 2.2;
  	//fcolor.rgb = pow(fcolor.rgb, vec3(1.0/gamma));

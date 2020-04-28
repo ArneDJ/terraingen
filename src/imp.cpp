@@ -116,7 +116,7 @@ void terrain_image(unsigned char *image, size_t sidelength, long seed, float fre
 	billow.SetSeed(seed);
 	billow.SetNoiseType(FastNoise::SimplexFractal);
 	billow.SetFractalType(FastNoise::Billow);
-	billow.SetFrequency(0.02f);
+	billow.SetFrequency(0.01f*freq);
 	billow.SetFractalOctaves(6);
 	billow.SetFractalLacunarity(2.0f);
 	billow.SetGradientPerturbAmp(40.f);
@@ -126,7 +126,7 @@ void terrain_image(unsigned char *image, size_t sidelength, long seed, float fre
 	cellnoise.SetSeed(seed);
 	cellnoise.SetNoiseType(FastNoise::Cellular);
 	cellnoise.SetCellularDistanceFunction(FastNoise::Euclidean);
-	cellnoise.SetFrequency(0.01f);
+	cellnoise.SetFrequency(0.01f*freq);
 	cellnoise.SetCellularReturnType(FastNoise::Distance2Add);
 	cellnoise.SetGradientPerturbAmp(30.f);
 
@@ -135,7 +135,7 @@ void terrain_image(unsigned char *image, size_t sidelength, long seed, float fre
 	perturb.SetSeed(seed);
 	perturb.SetNoiseType(FastNoise::SimplexFractal);
 	perturb.SetFractalType(FastNoise::FBM);
-	perturb.SetFrequency(0.002f);
+	perturb.SetFrequency(0.002f*freq);
 	perturb.SetFractalOctaves(5);
 	perturb.SetFractalLacunarity(2.0f);
 	perturb.SetGradientPerturbAmp(300.f);
