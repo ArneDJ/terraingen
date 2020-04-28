@@ -136,6 +136,15 @@ static void draw_primitives(const gltf::primitive_t *prim)
 	}
 }
 
+static void draw_primitives_instanced(const gltf::primitive_t *prim, size_t count)
+{
+	activate_texture(GL_TEXTURE0, GL_TEXTURE_2D, prim->material.basecolormap);
+	activate_texture(GL_TEXTURE1, GL_TEXTURE_2D, prim->material.metalroughmap);
+	activate_texture(GL_TEXTURE2, GL_TEXTURE_2D, prim->material.normalmap);
+
+	glDrawElementsInstancedBaseVertex(GL_TRIANGLES, prim->indexcount, GL_UNSIGNED_SHORT, (GLvoid *)((prim->firstindex)*sizeof(uint16_t)), count, prim->firstvertex);
+}
+
 void gltf::Model::load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &mesh, gltf::mesh_t *newmesh, std::vector<uint16_t> &indexbuffer, std::vector<vertex> &vertexbuffer)
 {
 	for (size_t j = 0; j < mesh.primitives.size(); j++) {
@@ -498,7 +507,7 @@ void gltf::Model::importf(std::string fpath)
 	}
 }
 
-void gltf::Model::updateAnimation(uint32_t index, float time)
+void gltf::Model::update_animation(uint32_t index, float time)
 {
 	if (animations.empty()) {
 		std::cout << ".glTF does not contain animation." << std::endl;
@@ -561,6 +570,7 @@ void gltf::Model::display(Shader *shader, glm::vec3 translation, float scale)
 	glBindVertexArray(bufferbind.VAO);
 
 	shader->uniform_bool("skinned", !skins.empty());
+	shader->uniform_bool("instanced", instanced);
 
 	for (gltf::node_t *node : linearnodes) {
 		if (node->mesh) {
@@ -572,9 +582,19 @@ void gltf::Model::display(Shader *shader, glm::vec3 translation, float scale)
 
 			for (const gltf::primitive_t *prim : node->mesh->primitives) {
 				shader->uniform_vec3("basedcolor", prim->material.basecolor);
-				draw_primitives(prim);
+				if (instanced == false) {
+					draw_primitives(prim);
+				} else {
+					draw_primitives_instanced(prim, instance_count);
+				}
 			}
 		}
 	}
 }
 
+void gltf::Model::instance(size_t count)
+{
+	instance_count = count;
+	instanced = true;
+	instance_buffer = instance_dynamic_VAO(bufferbind.VAO, count);
+}

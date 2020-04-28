@@ -158,9 +158,13 @@ public:
 		glDeleteBuffers(1, &bufferbind.VBO);
 		glDeleteVertexArrays(1, &bufferbind.VAO);
 	}
-	void updateAnimation(uint32_t index, float time);
+	void update_animation(uint32_t index, float time);
 	void display(Shader *shader, glm::vec3 translation, float scale);
+	void instance(size_t count);
+public:
 	std::vector<animation_t> animations;
+	GLuint instance_buffer;
+	size_t instance_count;
 private:
 	struct bufferobject bufferbind;
 	std::vector<node_t*> nodes;
@@ -168,6 +172,7 @@ private:
 	std::vector<skin_t*> skins;
 	std::vector<GLuint> textures;
 	std::vector<material_t> materials;
+	bool instanced = false;
 private:
 	void importf(std::string fpath);
 	void load_textures(tinygltf::Model &gltfmodel);

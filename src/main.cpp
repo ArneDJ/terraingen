@@ -199,7 +199,9 @@ void run_terraingen(SDL_Window *window)
 	gltf::Model tree_close { "media/models/tree.glb" };
 	gltf::Model model { "media/models/dragon.glb" };
 	gltf::Model duck { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
-	gltf::Model brainstem { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
+	//duck.instance(INSTANCE_COUNT);
+	gltf::Model brainstem { "media/models/samples/khronos/Fox/glTF-Binary/Fox.glb" };
+	brainstem.instance(INSTANCE_COUNT);
 
 	Camera cam { 
 		glm::vec3(1024.f, 128.f, 1024.f),
@@ -225,8 +227,27 @@ void run_terraingen(SDL_Window *window)
 		timer += delta;
 		if (brainstem.animations.empty() == false) {
 			if (timer > brainstem.animations[0].end) { timer -= brainstem.animations[0].end; }
-			brainstem.updateAnimation(0, timer);
+			brainstem.update_animation(0, timer);
 		}
+
+		glBindBuffer(GL_ARRAY_BUFFER, brainstem.instance_buffer);
+		glm::mat4 *matrices = (glm::mat4 *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+		int index = 0;
+		for (int i = 0; i < 50; i++) {
+			float a = 50.f * float(i) / 4.f;
+			float b = 50.f * float(i) / 5.f;
+			for (int j = 0; j < 50; j++) {
+				float c = 50.f * float(j) / 6.f;
+				glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1000.f+a, 128.f+20*sin(start+b), 1000.f+c));
+				//glm::mat4 R = glm::rotate(start, glm::vec3(0.0, 1.0, 0.0));
+				glm::mat4 R = glm::rotate(start, glm::vec3(1.0, 0.0, 0.0));
+				glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.05f));
+				matrices[index++] = T * R * S;
+			}
+
+		}
+		glUnmapBuffer(GL_ARRAY_BUFFER);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 		if (frames % 4 == 0) {
 			shadow.update(&cam, glm::vec3(0.5, 0.5, 0.5));
@@ -271,6 +292,7 @@ void run_terraingen(SDL_Window *window)
 		shadow.bindtextures(GL_TEXTURE10);
 		terrain.display();
 
+
 		model.display(&base, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
 		duck.display(&base, glm::vec3(970.f, 50.f, 970.f), 5.f);
 		brainstem.display(&base, glm::vec3(1091.f, 40.f, 936.f), 1.f);
@@ -278,30 +300,13 @@ void run_terraingen(SDL_Window *window)
 		sky.bind();
 		skybox.display();
 
-		glBindBuffer(GL_ARRAY_BUFFER, buffer);
-		glm::mat4 *matrices = (glm::mat4 *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-		int index = 0;
-		for (int i = 0; i < 50; i++) {
-			float a = 50.f * float(i) / 4.f;
-			float b = 50.f * float(i) / 5.f;
-			for (int j = 0; j < 50; j++) {
-				float c = 50.f * float(j) / 6.f;
-				glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1000.f+a, 128.f+20*sin(start+b), 1000.f+c));
-				glm::mat4 R = glm::rotate(start, glm::vec3(0.0, 1.0, 0.0));
-				matrices[index++] = T * R;
-			}
-
-		}
-		glUnmapBuffer(GL_ARRAY_BUFFER);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
 		undergrowth.bind();
 		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);
 		undergrowth.uniform_vec3("camerapos", cam.eye);
-	glDisable(GL_CULL_FACE);
-	glBindVertexArray(dynamic_quads.VAO);
-	glDrawElementsInstanced(dynamic_quads.mode, dynamic_quads.ecount, GL_UNSIGNED_SHORT, NULL, INSTANCE_COUNT);
-	glEnable(GL_CULL_FACE);
+	//glDisable(GL_CULL_FACE);
+	//glBindVertexArray(dynamic_quads.VAO);
+	//glDrawElementsInstanced(dynamic_quads.mode, dynamic_quads.ecount, GL_UNSIGNED_SHORT, NULL, INSTANCE_COUNT);
+	//glEnable(GL_CULL_FACE);
 /*
 		grass.display();
 */
