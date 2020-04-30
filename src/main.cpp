@@ -168,6 +168,57 @@ struct grass_box {
 	glm::vec2 max;
 };
 
+struct grass_patch {
+	GLuint VAO;
+	GLuint VBO; // vertex buffer object containing the root locations
+	size_t count; // grass root count
+	glm::vec2 min; // rectangle min
+	glm::vec2 max; // rectangle max
+};
+
+struct grass_patch gen_grass_patch(const Terrain *terrain, glm::vec2 min, glm::vec2 max, size_t density)
+{
+	struct grass_patch grass = {
+		.VAO = 0,
+		.VBO = 0,
+		.count = density,
+		.min = min,
+		.max = max,
+	};
+
+	const float mapscale = 0.5f;
+
+	std::vector<glm::vec3> positions;
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<> dis(0.f, 1.5f);
+	std::uniform_real_distribution<> map_x(min.x, max.x);
+	std::uniform_real_distribution<> map_z(min.y, max.y);
+
+	for (int i = 0; i < density; i++) {
+		float x = map_x(gen);
+		float z = map_z(gen);
+		float y = terrain->sampleheight(mapscale*x, mapscale*z);
+		if (terrain->sampleslope(mapscale*x, mapscale*z) < 0.6 && y < 0.4) {
+			glm::vec3 position = glm::vec3(x, dis(gen)+y*terrain->amplitude, z);
+			positions.push_back(position);
+		}
+	}
+	grass.count = positions.size();
+
+	glGenVertexArrays(1, &grass.VAO);
+	glBindVertexArray(grass.VAO);
+
+	glGenBuffers(1, &grass.VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, grass.VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*positions.size(), &positions[0], GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+	return grass;
+}
+
 struct grass_box camera_boundingbox(glm::mat4 view, glm::mat4 project)
 {
 	/*
@@ -282,6 +333,7 @@ void run_terraingen(SDL_Window *window)
 	terrain.gennormalmap();
 	terrain.genocclusmap();
 
+	struct grass_patch grass = gen_grass_patch(&terrain, glm::vec2(512.f, 512.f), glm::vec2(1536.f, 1536.f), 800000);
 	GLuint grass_texture = load_DDS_texture("media/textures/foliage/grass.dds");
 	struct mesh quad = gen_cardinal_quads();
 
@@ -363,14 +415,23 @@ void run_terraingen(SDL_Window *window)
 
 		undergrowth.bind();
 		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);
+		undergrowth.uniform_float("amplitude", terrain.amplitude);
 		undergrowth.uniform_vec3("camerapos", cam.eye);
 		glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1024.f, 128.f, 1024.f));
 		undergrowth.uniform_mat4("model", T);
 		glDisable(GL_CULL_FACE);
+		activate_texture(GL_TEXTURE0, GL_TEXTURE_2D, terrain.heightmap);
+		activate_texture(GL_TEXTURE1, GL_TEXTURE_2D, terrain.normalmap);
+		activate_texture(GL_TEXTURE2, GL_TEXTURE_2D, terrain.occlusmap);
+		activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, grass_texture);
+		glBindVertexArray(grass.VAO);
+		glDrawArrays(GL_POINTS, 0, grass.count);
+/*
 		glBindVertexArray(quad.VAO);
 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		glDrawElements(quad.mode, quad.ecount, GL_UNSIGNED_SHORT, NULL);
+		glDrawElements(quad.mode, 0, GL_UNSIGNED_SHORT, NULL);
 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+*/
 		glEnable(GL_CULL_FACE);
 
 		SDL_GL_SwapWindow(window);

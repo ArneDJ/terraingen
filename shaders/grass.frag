@@ -11,7 +11,7 @@ uniform float fogfactor;
 
 out vec4 color;
 
-in VERTEX {
+in GEOM {
 	vec3 position;
 	vec2 texcoord;
 } fragment;
@@ -28,7 +28,6 @@ vec3 fog(vec3 c, float dist, float height)
 
 void main(void)
 {
-	/*
 	const vec3 lightdirection = vec3(0.5, 0.5, 0.5);
 	const vec3 ambient = vec3(0.5, 0.5, 0.5);
 	const vec3 lightcolor = vec3(1.0, 1.0, 1.0);
@@ -38,18 +37,18 @@ void main(void)
 	if(color.a < 0.5) { discard; }
 
 	float dist = distance(camerapos, fragment.position);
-	float blending = 1.0 / (0.03*dist);
+	float blending = 1.0 / (0.01*dist);
 	color.a *= blending*blending;
 	if (color.a < 0.1) { discard; }
 	if (color.a > 0.6) { color.a = 0.6; }
 
 	color.rgb *= texture(occlusmap, mapscale * fragment.position.xz).r;
-	color.rgb = mix(vec3(0.34, 0.5, 0.09), color.rgb, 0.5);
+	color.rgb = mix(vec3(0.34, 0.5, 0.09), color.rgb, 0.8);
 
 	vec3 normal = texture(normalmap, mapscale * fragment.position.xz).rgb;
 	normal = (normal * 2.0) - 1.0;
 
-	float diffuse = max(0.0, dot(normal, lightdirection));
+	float diffuse = max(0.0, dot(0.7*normal, lightdirection));
 
 	vec3 scatteredlight = ambient + lightcolor * diffuse;
 	color.rgb = min(color.rgb * scatteredlight, vec3(1.0));
@@ -60,6 +59,9 @@ void main(void)
 	color.rgb = pow(color.rgb, vec3(1.0/gamma));
 	//color = vec4(1.0, 0.0, 0.0, 1.0);
 	//*/
-	color = vec4(1.0, 0.0, 0.0, 1.0);
+	//color = vec4(1.0, 0.0, 0.0, 1.0);
+	//color = texture(basemap, fragment.texcoord);
+	//if (color.a < 0.5) { discard; }
+//	color.a = 1.0;
 }
 
