@@ -27,9 +27,11 @@ void main(void)
 	vertex.texcoord = texcoord;
 
 	mat4 final_model = model;
+	/*
 	if (instanced == true) {
 		final_model = instance_model;
 	}
+	*/
 
 	if (skinned == true) {
 		mat4 skin_matrix =
@@ -39,11 +41,11 @@ void main(void)
 		weights.w * u_joint_matrix[int(joints.w)];
 
 		vec4 pos = final_model * skin_matrix * vec4(position, 1.0);
-		vertex.normal = normalize(mat3(transpose(inverse(model * skin_matrix))) * normal);
-		vertex.worldpos = vec4(model * skin_matrix * vec4(position, 1.0)).xyz;
+		vertex.normal = normalize(mat3(transpose(inverse(final_model * skin_matrix))) * normal);
+		vertex.worldpos = vec4(final_model * skin_matrix * vec4(position, 1.0)).xyz;
 		gl_Position = VIEW_PROJECT * pos;
 	} else {
-		vertex.normal = normalize(mat3(transpose(inverse(model))) * normal);
+		vertex.normal = normalize(mat3(transpose(inverse(final_model))) * normal);
 		vertex.worldpos = vec4(final_model * vec4(position, 1.0)).xyz;
 		gl_Position = VIEW_PROJECT * final_model * vec4(position, 1.0);
 	}
