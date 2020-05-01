@@ -163,57 +163,6 @@ Skybox init_skybox(void)
 	return skybox;
 }
 
-struct grass_patch {
-	GLuint VAO;
-	GLuint VBO; // vertex buffer object containing the root locations
-	size_t count; // grass root count
-	glm::vec2 min; // rectangle min
-	glm::vec2 max; // rectangle max
-};
-
-struct grass_patch gen_grass_patch(const Terrain *terrain, glm::vec2 min, glm::vec2 max, size_t density)
-{
-	struct grass_patch grass = {
-		.VAO = 0,
-		.VBO = 0,
-		.count = density,
-		.min = min,
-		.max = max,
-	};
-
-	const float mapscale = 0.5f;
-
-	std::vector<glm::vec2> positions;
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_real_distribution<> dis(0.f, 1.5f);
-	std::uniform_real_distribution<> map_x(min.x, max.x);
-	std::uniform_real_distribution<> map_z(min.y, max.y);
-
-	for (int i = 0; i < density; i++) {
-		float x = map_x(gen);
-		float z = map_z(gen);
-		float y = terrain->sampleheight(mapscale*x, mapscale*z);
-		if (terrain->sampleslope(mapscale*x, mapscale*z) < 0.6 && y < 0.4) {
-			glm::vec2 position = glm::vec2(x, z);
-			positions.push_back(position);
-		}
-	}
-	grass.count = positions.size();
-
-	glGenVertexArrays(1, &grass.VAO);
-	glBindVertexArray(grass.VAO);
-
-	glGenBuffers(1, &grass.VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, grass.VBO);
-	glBufferStorage(GL_ARRAY_BUFFER, sizeof(glm::vec2)*positions.size(), &positions[0], 0);
-
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
-
-	return grass;
-}
-
 void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -237,14 +186,19 @@ void run_terraingen(SDL_Window *window)
 	terrain.genocclusmap();
 
 	GLuint distortion_map = load_DDS_texture("media/textures/distortion.dds");
-	struct grass_patch grass = gen_grass_patch(&terrain, glm::vec2(512.f, 512.f), glm::vec2(1536.f, 1536.f), 800000);
+	Grass grass {
+		&terrain,
+		800000,
+		terrain.heightmap,
+		terrain.normalmap,
+		terrain.occlusmap,
+		terrain.detailmap,
+		distortion_map
+	};
+	//struct mesh grass = gen_grass_roots(&terrain, glm::vec2(512.f, 512.f), glm::vec2(1536.f, 1536.f), 800000);
 
-	gltf::Model tree_close { "media/models/tree.glb" };
 	gltf::Model model { "media/models/dragon.glb" };
 	gltf::Model duck { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
-	//gltf::Model duck { "media/models/iron_sphere.glb" };
-	const size_t DUCK_INSTANCE_COUNT = 4096;
-	duck.instance(DUCK_INSTANCE_COUNT);
 	gltf::Model character { "media/models/character.glb" };
 	//gltf::Model character { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
 
@@ -269,24 +223,6 @@ void run_terraingen(SDL_Window *window)
 		const float delta = start - end;
 		cam.update(delta);
 
-		glBindBuffer(GL_ARRAY_BUFFER, duck.instance_buffer);
-		glm::mat4 *matrices = (glm::mat4 *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-		int index = 0;
-		for (int i = 0; i < 64; i++) {
-			float a = 50.f * float(i) / 4.f;
-			float b = 50.f * float(i) / 5.f;
-			for (int j = 0; j < 64; j++) {
-				float c = 50.f * float(j) / 6.f;
-				glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1000.f+a, 128.f+20*sin(start+b), 1000.f+c));
-				//glm::mat4 R = glm::rotate(start, glm::vec3(0.0, 1.0, 0.0));
-				glm::mat4 R = glm::rotate(start, glm::vec3(1.0, 0.0, 0.0));
-				glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.05f));
-				matrices[index++] = T * R * S;
-			}
-		}
-		glUnmapBuffer(GL_ARRAY_BUFFER);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
 		if (frames % 4 == 0) {
 			shadow.update(&cam, glm::vec3(0.5, 0.5, 0.5));
 			shadow.enable();
@@ -295,7 +231,6 @@ void run_terraingen(SDL_Window *window)
 				shadow.binddepth(i);
 				depthpass.uniform_mat4("VIEW_PROJECT", shadow.shadowspace[i]);
 				depthpass.uniform_bool("instanced", false);
-				tree_close.display(&depthpass, glm::vec3(1020.f, 50.f, 1020.f), 1.f);
 				model.display(&depthpass, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
 				duck.display(&depthpass, glm::vec3(970.f, 50.f, 970.f), 5.f);
 			}
@@ -320,15 +255,14 @@ void run_terraingen(SDL_Window *window)
 		terra.uniform_vec3("camerapos", cam.eye);
 		terra.uniform_vec4("split", shadow.splitdepth);
 		std::vector<glm::mat4> shadowspace {
-		shadow.scalebias * shadow.shadowspace[0],
-		shadow.scalebias * shadow.shadowspace[1],
-		shadow.scalebias * shadow.shadowspace[2],
-		shadow.scalebias * shadow.shadowspace[3],
+			shadow.scalebias * shadow.shadowspace[0],
+			shadow.scalebias * shadow.shadowspace[1],
+			shadow.scalebias * shadow.shadowspace[2],
+			shadow.scalebias * shadow.shadowspace[3],
 		};
 		terra.uniform_mat4_array("shadowspace", shadowspace);
 		shadow.bindtextures(GL_TEXTURE10);
 		terrain.display();
-
 
 		model.display(&base, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
 		duck.display(&base, glm::vec3(970.f, 50.f, 970.f), 5.f);
@@ -343,17 +277,7 @@ void run_terraingen(SDL_Window *window)
 		undergrowth.uniform_vec3("camerapos", cam.eye);
 		undergrowth.uniform_vec4("split", shadow.splitdepth);
 		undergrowth.uniform_mat4_array("shadowspace", shadowspace);
-		glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1024.f, 128.f, 1024.f));
-		undergrowth.uniform_mat4("model", T);
-		glDisable(GL_CULL_FACE);
-		activate_texture(GL_TEXTURE0, GL_TEXTURE_2D, terrain.heightmap);
-		activate_texture(GL_TEXTURE1, GL_TEXTURE_2D, terrain.normalmap);
-		activate_texture(GL_TEXTURE2, GL_TEXTURE_2D, terrain.occlusmap);
-		activate_texture(GL_TEXTURE3, GL_TEXTURE_2D, terrain.detailmap);
-		activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, distortion_map);
-		glBindVertexArray(grass.VAO);
-		glDrawArrays(GL_POINTS, 0, grass.count);
-		glEnable(GL_CULL_FACE);
+		grass.display();
 
 		SDL_GL_SwapWindow(window);
 		end = start;

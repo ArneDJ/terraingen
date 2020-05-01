@@ -8,7 +8,6 @@ layout(binding = 0) uniform sampler2D heightmap;
 layout(binding = 4) uniform sampler2D windmap;
 
 uniform mat4 VIEW_PROJECT;
-uniform  mat4 model;
 uniform float mapscale;
 uniform float amplitude;
 uniform float time;
@@ -94,7 +93,8 @@ void main(void)
 
 	if (dist < 150.0) {
 
-	vec2 uv = 0.005*position.xz + frequency * time;
+		float tiling = 0.005;
+	vec2 uv = tiling*position.xz + frequency * time;
 	vec2 windsample = (texture(windmap, uv).rg * 2.0 - 1.0) * 2.0;
 	vec3 wind = normalize(vec3(windsample.x, windsample.y, 0.0));
 	mat3 rotation = AngleAxis3x3(windsample.x, wind) * AngleAxis3x3(windsample.y, wind);

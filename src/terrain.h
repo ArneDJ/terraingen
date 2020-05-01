@@ -33,18 +33,19 @@ private:
 
 class Grass {
 public:
-	Grass(const Terrain *ter, size_t density, GLuint texturebind, GLuint norm, GLuint occlus);
+	Grass(const Terrain *ter, size_t density, GLuint height, GLuint norm, GLuint occlus, GLuint detail, GLuint wind);
 	~Grass(void) 
 	{
-		delete_mesh(&quads);
+		delete_mesh(&roots);
 	}
 	void display(void) const;
 private:
-	size_t instancecount;
-	struct mesh quads;
-	GLuint texture;
+	struct mesh roots;
+	GLuint heightmap;
 	GLuint normalmap;
 	GLuint occlusmap;
+	GLuint detailmap;
+	GLuint windmap;
 };
 
 class Skybox {

@@ -3,6 +3,7 @@
 layout(binding = 1) uniform sampler2D normalmap;
 layout(binding = 2) uniform sampler2D occlusmap;
 layout(binding = 3) uniform sampler2D detailmap;
+layout(binding = 5) uniform sampler2D colormap;
 
 layout(binding = 10) uniform sampler2DArrayShadow shadowmap;
 
@@ -87,6 +88,7 @@ void main(void)
 	const vec3 viewspace = vec3(distance(fragment.position.x, camerapos.x), distance(fragment.position.y, camerapos.y), distance(fragment.position.z, camerapos.z));
 
 	color = vec4(0.34, 0.5, 0.09, 1.0);
+	//color = texture(colormap, fragment.texcoord);
 
 /*
 	float dist = distance(camerapos, fragment.position);

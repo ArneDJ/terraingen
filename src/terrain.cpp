@@ -15,6 +15,49 @@
 #include "glwrapper.h"
 #include "terrain.h"
 
+// fills a vertex buffer with the positions of the grass roots, to be used in a geometry shader
+static struct mesh gen_grass_roots(const Terrain *terrain, glm::vec2 min, glm::vec2 max, size_t density)
+{
+	struct mesh grass = {
+		.VAO = 0, .VBO = 0, .EBO = 0,
+		.mode = GL_POINTS,
+		.ecount = 0,
+		.indexed = false
+	};
+
+	const float mapscale = 0.5f;
+
+	std::vector<glm::vec2> positions;
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<> dis(0.f, 1.5f);
+	std::uniform_real_distribution<> map_x(min.x, max.x);
+	std::uniform_real_distribution<> map_z(min.y, max.y);
+
+	for (int i = 0; i < density; i++) {
+		float x = map_x(gen);
+		float z = map_z(gen);
+		float y = terrain->sampleheight(mapscale*x, mapscale*z);
+		if (terrain->sampleslope(mapscale*x, mapscale*z) < 0.6 && y < 0.4) {
+			glm::vec2 position = glm::vec2(x, z);
+			positions.push_back(position);
+		}
+	}
+	grass.ecount = GLsizei(positions.size());
+
+	glGenVertexArrays(1, &grass.VAO);
+	glBindVertexArray(grass.VAO);
+
+	glGenBuffers(1, &grass.VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, grass.VBO);
+	glBufferStorage(GL_ARRAY_BUFFER, sizeof(glm::vec2)*positions.size(), &positions[0], 0);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+
+	return grass;
+}
+
 Terrain::Terrain(size_t sidelen, float patchoffst, float amp) 
 {
 	sidelength = sidelen * patchoffst;
@@ -22,12 +65,12 @@ Terrain::Terrain(size_t sidelen, float patchoffst, float amp)
 	termesh =  gen_patch_grid(sidelen, patchoffst);
 	mapratio = 0.f;
 
-	detailmap = load_DDS_texture("media/textures/terain/detailmap.dds");
+	detailmap = load_DDS_texture("media/textures/terrain/detailmap.dds");
 
-	tersurface.grass = load_DDS_texture("media/textures/terain/grass.dds");
-	tersurface.dirt = load_DDS_texture("media/textures/terain/dirt.dds");
-	tersurface.stone = load_DDS_texture("media/textures/terain/stone.dds");
-	tersurface.snow = load_DDS_texture("media/textures/terain/snow.dds");
+	tersurface.grass = load_DDS_texture("media/textures/terrain/grass.dds");
+	tersurface.dirt = load_DDS_texture("media/textures/terrain/dirt.dds");
+	tersurface.stone = load_DDS_texture("media/textures/terrain/stone.dds");
+	tersurface.snow = load_DDS_texture("media/textures/terrain/snow.dds");
 }
 
 Terrain::~Terrain(void) 
@@ -103,49 +146,29 @@ float Terrain::sampleslope(float x, float z) const
 	return 1.f - ((slope * 2.f) - 1.f);
 }
 
-Grass::Grass(const Terrain *ter, size_t density, GLuint texturebind, GLuint norm, GLuint occlus)
+Grass::Grass(const Terrain *ter, size_t density, GLuint height, GLuint norm, GLuint occlus, GLuint detail, GLuint wind)
 {
-	const float invratio = 1.f / ter->mapratio;
-	const float minpos = 0.35f * (invratio * ter->sidelength); // max grass position
-	const float maxpos = 0.65f * (invratio * ter->sidelength); // min grass position
+	const float minpos = 0.25 * ter->sidelength; // min grass position
+	const float maxpos = 0.75 * ter->sidelength; // max grass position
 
-	quads = gen_cardinal_quads();
-	texture = texturebind;
+	roots = gen_grass_roots(ter, glm::vec2(minpos, minpos), glm::vec2(maxpos, maxpos), density);
+	heightmap = height;
 	normalmap = norm;
 	occlusmap = occlus;
-
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_real_distribution<> dis(0.f, 1.1f);
-	std::uniform_real_distribution<> map(minpos, maxpos);
-
-	std::vector<glm::mat4> transforms;
-	transforms.reserve(density);
-	for (int i = 0; i < density; i++) {
-		float x = map(gen);
-		float z = map(gen);
-		float y = ter->sampleheight(x, z);
-		if (ter->sampleslope(x, z) < 0.6 && y < 0.4) {
-			float angle = dis(gen);
-			glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(x*ter->mapratio, ter->amplitude*y+dis(gen), z*ter->mapratio));
-			glm::mat4 R = glm::rotate(angle, glm::vec3(0.0, 1.0, 0.0));
-			//glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(3.f, 1.f, 3.f));
-			transforms.push_back(T * R);
-		}
-	}
-	instancecount = transforms.size();
-	transforms.resize(instancecount);
-	instance_static_VAO(quads.VAO, &transforms);
+	detailmap = detail;
+	windmap = wind;
 }
 
 void Grass::display(void) const
 {
-	glDisable(GL_CULL_FACE);
+	activate_texture(GL_TEXTURE0, GL_TEXTURE_2D, heightmap);
 	activate_texture(GL_TEXTURE1, GL_TEXTURE_2D, normalmap);
 	activate_texture(GL_TEXTURE2, GL_TEXTURE_2D, occlusmap);
-	activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, texture);
-	glBindVertexArray(quads.VAO);
-	glDrawElementsInstanced(quads.mode, quads.ecount, GL_UNSIGNED_SHORT, NULL, instancecount);
+	activate_texture(GL_TEXTURE3, GL_TEXTURE_2D, detailmap);
+	activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, windmap);
+	glDisable(GL_CULL_FACE);
+	glBindVertexArray(roots.VAO);
+	glDrawArrays(GL_POINTS, 0, roots.ecount);
 	glEnable(GL_CULL_FACE);
 }
 
