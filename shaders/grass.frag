@@ -2,6 +2,7 @@
 
 layout(binding = 1) uniform sampler2D normalmap;
 layout(binding = 2) uniform sampler2D occlusmap;
+layout(binding = 3) uniform sampler2D detailmap;
 layout(binding = 4) uniform sampler2D basemap;
 
 uniform float mapscale;
@@ -33,31 +34,41 @@ void main(void)
 	const vec3 lightcolor = vec3(1.0, 1.0, 1.0);
 	const vec3 viewspace = vec3(distance(fragment.position.x, camerapos.x), distance(fragment.position.y, camerapos.y), distance(fragment.position.z, camerapos.z));
 
+/*
 	color = texture(basemap, fragment.texcoord);
 	if(color.a < 0.5) { discard; }
+*/
+	color = vec4(0.34, 0.5, 0.09, 1.0);
 
+/*
 	float dist = distance(camerapos, fragment.position);
 	float blending = 1.0 / (0.01*dist);
 	color.a *= blending*blending;
 	if (color.a < 0.1) { discard; }
-	if (color.a > 0.6) { color.a = 0.6; }
+	*/
+//	if (color.a > 0.6) { color.a = 0.6; }
 
 	color.rgb *= texture(occlusmap, mapscale * fragment.position.xz).r;
-	color.rgb = mix(vec3(0.34, 0.5, 0.09), color.rgb, 0.8);
+	//color.rgb = mix(vec3(0.34, 0.5, 0.09), color.rgb, 0.8);
 
 	vec3 normal = texture(normalmap, mapscale * fragment.position.xz).rgb;
 	normal = (normal * 2.0) - 1.0;
+	vec3 detail = texture(detailmap, fragment.texcoord*0.01).rgb;
+	detail  = (detail * 2.0) - 1.0;
+	detail = vec3(detail.x, detail.z, detail.y);
 
-	float diffuse = max(0.0, dot(0.7*normal, lightdirection));
+	normal = normalize((0.5 * detail) + normal);
+
+	float diffuse = max(0.0, dot(normal, lightdirection));
 
 	vec3 scatteredlight = ambient + lightcolor * diffuse;
 	color.rgb = min(color.rgb * scatteredlight, vec3(1.0));
 
-	color.rgb = fog(color.rgb, length(viewspace), 0.007 * fragment.position.y);
+	color.rgb = fog(color.rgb, length(viewspace), 0.003 * fragment.position.y);
 
 	float gamma = 1.6;
 	color.rgb = pow(color.rgb, vec3(1.0/gamma));
-	//color = vec4(1.0, 0.0, 0.0, 1.0);
+//	color = vec4(1.0, 0.0, 0.0, 1.0);
 	//*/
 	//color = vec4(1.0, 0.0, 0.0, 1.0);
 	//color = texture(basemap, fragment.texcoord);

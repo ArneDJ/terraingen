@@ -340,6 +340,9 @@ void run_terraingen(SDL_Window *window)
 	gltf::Model tree_close { "media/models/tree.glb" };
 	gltf::Model model { "media/models/dragon.glb" };
 	gltf::Model duck { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
+	//gltf::Model duck { "media/models/iron_sphere.glb" };
+	const size_t DUCK_INSTANCE_COUNT = 10000;
+	duck.instance(DUCK_INSTANCE_COUNT);
 	gltf::Model character { "media/models/character.glb" };
 	//gltf::Model character { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
 
@@ -363,6 +366,25 @@ void run_terraingen(SDL_Window *window)
 		start = 0.001f * float(SDL_GetTicks());
 		const float delta = start - end;
 		cam.update(delta);
+
+		glBindBuffer(GL_ARRAY_BUFFER, duck.instance_buffer);
+		glm::mat4 *matrices = (glm::mat4 *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+		int index = 0;
+		for (int i = 0; i < 100; i++) {
+		float a = 50.f * float(i) / 4.f;
+		float b = 50.f * float(i) / 5.f;
+		for (int j = 0; j < 100; j++) {
+		float c = 50.f * float(j) / 6.f;
+		glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1000.f+a, 128.f+20*sin(start+b), 1000.f+c));
+		//glm::mat4 R = glm::rotate(start, glm::vec3(0.0, 1.0, 0.0));
+		glm::mat4 R = glm::rotate(start, glm::vec3(1.0, 0.0, 0.0));
+		glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.05f));
+		matrices[index++] = T * R * S;
+		}
+
+		}
+		glUnmapBuffer(GL_ARRAY_BUFFER);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 		if (frames % 4 == 0) {
 			shadow.update(&cam, glm::vec3(0.5, 0.5, 0.5));
@@ -423,15 +445,10 @@ void run_terraingen(SDL_Window *window)
 		activate_texture(GL_TEXTURE0, GL_TEXTURE_2D, terrain.heightmap);
 		activate_texture(GL_TEXTURE1, GL_TEXTURE_2D, terrain.normalmap);
 		activate_texture(GL_TEXTURE2, GL_TEXTURE_2D, terrain.occlusmap);
+		activate_texture(GL_TEXTURE3, GL_TEXTURE_2D, terrain.detailmap);
 		activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, grass_texture);
 		glBindVertexArray(grass.VAO);
 		glDrawArrays(GL_POINTS, 0, grass.count);
-/*
-		glBindVertexArray(quad.VAO);
-glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		glDrawElements(quad.mode, 0, GL_UNSIGNED_SHORT, NULL);
-glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-*/
 		glEnable(GL_CULL_FACE);
 
 		SDL_GL_SwapWindow(window);
