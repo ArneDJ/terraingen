@@ -5,10 +5,13 @@ layout (triangle_strip) out;
 layout (max_vertices = 60) out;
 
 layout(binding = 0) uniform sampler2D heightmap;
+layout(binding = 4) uniform sampler2D windmap;
+
 uniform mat4 VIEW_PROJECT;
 uniform  mat4 model;
 uniform float mapscale;
 uniform float amplitude;
+uniform float time;
 uniform vec3 camerapos;
 
 out GEOM {
@@ -64,22 +67,47 @@ void make_triangle(vec3 a, vec3 b, vec3 c, vec3 position)
 	EndPrimitive();
 }
 
+mat3 AngleAxis3x3(float angle, vec3 axis)
+{
+    float s = sin(angle);
+    float c = cos(angle);
+
+    float t = 1 - c;
+    float x = axis.x;
+    float y = axis.y;
+    float z = axis.z;
+
+    return mat3(
+        t * x * x + c,      t * x * y - s * z,  t * x * z + s * y,
+        t * x * y + s * z,  t * y * y + c,      t * y * z - s * x,
+        t * x * z - s * y,  t * y * z + s * x,  t * z * z + c
+    );
+}
+
+const float frequency = 0.05;
+
 void main(void)
 {
 	vec3 position = gl_in[0].gl_Position.xyz;
-	// individual grass blade
-	vec3 a = vec3(0.0, -1.0, 0.0);
-	vec3 b = vec3(0.19, -1.0, 0.0);
-	vec3 c = vec3(0.11, 0.41, 0.0);
-	vec3 d = vec3(0.28, 0.41, 0.0);
-	vec3 e = vec3(0.28, 0.78, 0.0);
-	vec3 f = vec3(0.42, 0.78, 0.0);
-	vec3 g = vec3(0.58, 1.0, 0.0);
-
 	float dist = distance(camerapos, position);
 	//float blending = 1.0 / (0.01*dist);
 
 	if (dist < 150.0) {
+
+	vec2 uv = 0.005*position.xz + frequency * time;
+	vec2 windsample = (texture(windmap, uv).rg * 2.0 - 1.0) * 2.0;
+	vec3 wind = normalize(vec3(windsample.x, windsample.y, 0.0));
+	mat3 rotation = AngleAxis3x3(windsample.x, wind) * AngleAxis3x3(windsample.y, wind);
+
+	// individual grass blade
+	vec3 a = vec3(0.0, -1.0, 0.0);
+	vec3 b = vec3(0.19, -1.0, 0.0);
+	vec3 c = vec3(0.11, 0.41, 0.0);
+	vec3 d = rotation * vec3(0.28, 0.41, 0.0);
+	vec3 e = rotation * vec3(0.28, 0.78, 0.0);
+	vec3 f = rotation * vec3(0.42, 0.78, 0.0);
+	vec3 g = rotation * vec3(0.58, 1.0, 0.0);
+
 		make_triangle(a, b, c, position);
 		make_triangle(b, c, d, position);
 		make_triangle(c, d, e, position);

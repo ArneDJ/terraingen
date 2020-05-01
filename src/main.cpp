@@ -206,7 +206,7 @@ struct grass_patch gen_grass_patch(const Terrain *terrain, glm::vec2 min, glm::v
 
 	glGenBuffers(1, &grass.VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, grass.VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2)*positions.size(), &positions[0], GL_STATIC_DRAW);
+	glBufferStorage(GL_ARRAY_BUFFER, sizeof(glm::vec2)*positions.size(), &positions[0], 0);
 
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
@@ -236,6 +236,7 @@ void run_terraingen(SDL_Window *window)
 	terrain.gennormalmap();
 	terrain.genocclusmap();
 
+	GLuint distortion_map = load_DDS_texture("media/textures/distortion.dds");
 	struct grass_patch grass = gen_grass_patch(&terrain, glm::vec2(512.f, 512.f), glm::vec2(1536.f, 1536.f), 800000);
 
 	gltf::Model tree_close { "media/models/tree.glb" };
@@ -338,6 +339,7 @@ void run_terraingen(SDL_Window *window)
 		undergrowth.bind();
 		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);
 		undergrowth.uniform_float("amplitude", terrain.amplitude);
+		undergrowth.uniform_float("time", start);
 		undergrowth.uniform_vec3("camerapos", cam.eye);
 		undergrowth.uniform_vec4("split", shadow.splitdepth);
 		undergrowth.uniform_mat4_array("shadowspace", shadowspace);
@@ -348,6 +350,7 @@ void run_terraingen(SDL_Window *window)
 		activate_texture(GL_TEXTURE1, GL_TEXTURE_2D, terrain.normalmap);
 		activate_texture(GL_TEXTURE2, GL_TEXTURE_2D, terrain.occlusmap);
 		activate_texture(GL_TEXTURE3, GL_TEXTURE_2D, terrain.detailmap);
+		activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, distortion_map);
 		glBindVertexArray(grass.VAO);
 		glDrawArrays(GL_POINTS, 0, grass.count);
 		glEnable(GL_CULL_FACE);

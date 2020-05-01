@@ -3,7 +3,6 @@
 layout(binding = 1) uniform sampler2D normalmap;
 layout(binding = 2) uniform sampler2D occlusmap;
 layout(binding = 3) uniform sampler2D detailmap;
-layout(binding = 4) uniform sampler2D basemap;
 
 layout(binding = 10) uniform sampler2DArrayShadow shadowmap;
 
