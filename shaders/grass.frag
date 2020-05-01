@@ -5,16 +5,21 @@ layout(binding = 2) uniform sampler2D occlusmap;
 layout(binding = 3) uniform sampler2D detailmap;
 layout(binding = 4) uniform sampler2D basemap;
 
+layout(binding = 10) uniform sampler2DArrayShadow shadowmap;
+
 uniform float mapscale;
 uniform vec3 camerapos;
 uniform vec3 fogcolor;
 uniform float fogfactor;
+uniform vec4 split;
+uniform mat4 shadowspace[4];
 
 out vec4 color;
 
 in GEOM {
 	vec3 position;
 	vec2 texcoord;
+	float zclipspace;
 } fragment;
 
 vec3 fog(vec3 c, float dist, float height)
@@ -27,6 +32,54 @@ vec3 fog(vec3 c, float dist, float height)
 	return c * extinction + fogcolor * (1.0 - inscattering);
 }
 
+float filterPCF(vec4 sc)
+{
+	ivec2 size = textureSize(shadowmap, 0).xy;
+	float scale = 0.75;
+	float dx = scale * 1.0 / float(size.x);
+	float dy = scale * 1.0 / float(size.y);
+
+	float shadow = 0.0;
+	int count = 0;
+	int range = 1;
+
+	for (int x = -range; x <= range; x++) {
+		for (int y = -range; y <= range; y++) {
+			vec4 coords = sc;
+			coords.x += dx*x;
+			coords.y += dy*y;
+			shadow += texture(shadowmap, coords);
+			count++;
+		}
+	}
+	return shadow / count;
+}
+
+float shadow_coef(void)
+{
+	float shadow = 1.0;
+
+	int cascade = 0;
+	if (fragment.zclipspace < split.x) {
+		cascade = 0;
+	} else if (fragment.zclipspace < split.y) {
+		cascade = 1;
+	} else if (fragment.zclipspace < split.z) {
+		cascade = 2;
+	} else if (fragment.zclipspace < split.w) {
+		cascade = 3;
+	} else {
+		return 1.0;
+	}
+
+	vec4 coords = shadowspace[int(cascade)] * vec4(fragment.position, 1.0);
+	coords.w = coords.z;
+	coords.z = float(cascade);
+	shadow = filterPCF(coords);
+
+	return clamp(shadow, 0.1, 1.0);
+}
+
 void main(void)
 {
 	const vec3 lightdirection = vec3(0.5, 0.5, 0.5);
@@ -34,10 +87,6 @@ void main(void)
 	const vec3 lightcolor = vec3(1.0, 1.0, 1.0);
 	const vec3 viewspace = vec3(distance(fragment.position.x, camerapos.x), distance(fragment.position.y, camerapos.y), distance(fragment.position.z, camerapos.z));
 
-/*
-	color = texture(basemap, fragment.texcoord);
-	if(color.a < 0.5) { discard; }
-*/
 	color = vec4(0.34, 0.5, 0.09, 1.0);
 
 /*
@@ -49,7 +98,6 @@ void main(void)
 //	if (color.a > 0.6) { color.a = 0.6; }
 
 	color.rgb *= texture(occlusmap, mapscale * fragment.position.xz).r;
-	//color.rgb = mix(vec3(0.34, 0.5, 0.09), color.rgb, 0.8);
 
 	vec3 normal = texture(normalmap, mapscale * fragment.position.xz).rgb;
 	normal = (normal * 2.0) - 1.0;
@@ -60,8 +108,9 @@ void main(void)
 	normal = normalize((0.5 * detail) + normal);
 
 	float diffuse = max(0.0, dot(normal, lightdirection));
+	float shadow = shadow_coef();
 
-	vec3 scatteredlight = ambient + lightcolor * diffuse;
+	vec3 scatteredlight = ambient + lightcolor * diffuse * shadow;
 	color.rgb = min(color.rgb * scatteredlight, vec3(1.0));
 
 	color.rgb = fog(color.rgb, length(viewspace), 0.003 * fragment.position.y);
@@ -69,10 +118,5 @@ void main(void)
 	float gamma = 1.6;
 	color.rgb = pow(color.rgb, vec3(1.0/gamma));
 //	color = vec4(1.0, 0.0, 0.0, 1.0);
-	//*/
-	//color = vec4(1.0, 0.0, 0.0, 1.0);
-	//color = texture(basemap, fragment.texcoord);
-	//if (color.a < 0.5) { discard; }
-//	color.a = 1.0;
 }
 

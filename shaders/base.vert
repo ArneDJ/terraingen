@@ -23,7 +23,6 @@ out VERTEX {
 
 void main(void)
 {
-	//vertex.normal = normal;
 	vertex.texcoord = texcoord;
 
 	mat4 final_model = model;

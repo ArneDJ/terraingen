@@ -31,7 +31,7 @@
 #define GRASS_DENSITY 10000
 #define TREES_DENSITY 50000
 #define FOG_DENSITY 0.015f
-#define SHADOW_TEXTURE_SIZE 4096
+#define SHADOW_TEXTURE_SIZE 2048
 
 Shader base_shader(void)
 {
@@ -163,11 +163,6 @@ Skybox init_skybox(void)
 	return skybox;
 }
 
-struct grass_box {
-	glm::vec2 min;
-	glm::vec2 max;
-};
-
 struct grass_patch {
 	GLuint VAO;
 	GLuint VBO; // vertex buffer object containing the root locations
@@ -188,7 +183,7 @@ struct grass_patch gen_grass_patch(const Terrain *terrain, glm::vec2 min, glm::v
 
 	const float mapscale = 0.5f;
 
-	std::vector<glm::vec3> positions;
+	std::vector<glm::vec2> positions;
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution<> dis(0.f, 1.5f);
@@ -200,7 +195,7 @@ struct grass_patch gen_grass_patch(const Terrain *terrain, glm::vec2 min, glm::v
 		float z = map_z(gen);
 		float y = terrain->sampleheight(mapscale*x, mapscale*z);
 		if (terrain->sampleslope(mapscale*x, mapscale*z) < 0.6 && y < 0.4) {
-			glm::vec3 position = glm::vec3(x, dis(gen)+y*terrain->amplitude, z);
+			glm::vec2 position = glm::vec2(x, z);
 			positions.push_back(position);
 		}
 	}
@@ -211,105 +206,13 @@ struct grass_patch gen_grass_patch(const Terrain *terrain, glm::vec2 min, glm::v
 
 	glGenBuffers(1, &grass.VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, grass.VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*positions.size(), &positions[0], GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2)*positions.size(), &positions[0], GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
 
 	return grass;
 }
-
-struct grass_box camera_boundingbox(glm::mat4 view, glm::mat4 project)
-{
-	/*
-	glm::vec3 eye = glm::vec3(1024.f, 128.f, 1024.f);
-	glm::vec3 wow = glm::vec3(1.f, 0.f, 1.f);
-	view = glm::lookAt(eye, eye + wow, glm::vec3(0.f, 1.f, 0.f));
-	*/
-	project = glm::perspective(glm::radians(50.f), 1.77f, 0.1f, 1600.f);
-
-	glm::vec3 corners[8] = {
-		glm::vec3(-1.0f,  1.0f, -1.0f),
-		glm::vec3( 1.0f,  1.0f, -1.0f),
-		glm::vec3( 1.0f, -1.0f, -1.0f),
-		glm::vec3(-1.0f, -1.0f, -1.0f),
-		glm::vec3(-1.0f,  1.0f,  1.0f),
-		glm::vec3( 1.0f,  1.0f,  1.0f),
-		glm::vec3( 1.0f, -1.0f,  1.0f),
-		glm::vec3(-1.0f, -1.0f,  1.0f),
-	};
-
-	// Project frustum corners into world space
-	glm::mat4 invcam = glm::inverse(project * view);
-	for (uint32_t i = 0; i < 8; i++) {
-		glm::vec4 invcorner = invcam * glm::vec4(corners[i], 1.0f);
-		corners[i] = invcorner / invcorner.w;
-	}
-
-	float split_dist = 0.05f;
-	float last_split = 0.04f;
-	for (uint32_t i = 0; i < 4; i++) {
-		glm::vec3 dist = corners[i + 4] - corners[i];
-		corners[i + 4] = corners[i] + (dist * split_dist);
-		corners[i] = corners[i] + (dist * last_split);
-	}
-
-	// Get frustum center
-	glm::vec3 center = glm::vec3(0.0f);
-	for (uint32_t i = 0; i < 8; i++) {
-		center += corners[i];
-	}
-	center /= 8.0f;
-
-	float radius = 0.0f;
-	for (uint32_t i = 0; i < 8; i++) {
-		float distance = glm::length(corners[i] - center);
-		radius = std::max(radius, distance);
-	}
-	radius = std::ceil(radius * 16.0f) / 16.0f;
-
-	glm::vec3 max_extents = glm::vec3(radius);
-	glm::vec3 min_extents = -max_extents;
-
-	struct grass_box box = {
-		.min = glm::vec2(center.x+min_extents.x, center.z+min_extents.z),
-		.max = glm::vec2(center.x+max_extents.x, center.z+max_extents.z),
-	};
-
-	return box;
-}
-
-bool ptinrect(glm::vec2 pt, glm::vec2 min, glm::vec2 max)
-{
-	return pt.x >= min.x && pt.x < max.x && pt.y >= min.y && pt.y < max.y;
-}
-
-		/*
-		if (frames % 4 == 0) {
-		glBindBuffer(GL_ARRAY_BUFFER, buffer);
-		glm::mat4 *grass_matrices = (glm::mat4 *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-		glm::vec2 origin = glm::vec2(cam.eye.x, cam.eye.z);
-		std::uniform_real_distribution<> dis(0.f, 1.5f);
-		std::uniform_real_distribution<> map_x(box.min.x, box.max.x);
-		std::uniform_real_distribution<> map_z(box.min.y, box.max.y);
-		for (int i = 0; i < GRASS_DENSITY; i++) {
-			float x = map_x(gen);
-			float z = map_z(gen);
-			glm::vec2 grass_loc = glm::vec2(grass_translations[i].x, grass_translations[i].z);
-			glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(3.f, 2.f, 3.f));
-			if (ptinrect(grass_loc, box.min, box.max) == false) {
-				grass_loc = glm::vec2(x, z);
-				float y = terrain.sampleheight(0.5f*x, 0.5f*z);
-				grass_translations[i] = glm::vec3(x, dis(gen)+y*terrain.amplitude, z);
-			}
-			glm::mat4 T = glm::translate(glm::mat4(1.f), grass_translations[i]);
-			grass_matrices[i] = T * S;
-
-		}
-		glUnmapBuffer(GL_ARRAY_BUFFER);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		}
-		*/
 
 void run_terraingen(SDL_Window *window)
 {
@@ -334,14 +237,12 @@ void run_terraingen(SDL_Window *window)
 	terrain.genocclusmap();
 
 	struct grass_patch grass = gen_grass_patch(&terrain, glm::vec2(512.f, 512.f), glm::vec2(1536.f, 1536.f), 800000);
-	GLuint grass_texture = load_DDS_texture("media/textures/foliage/grass.dds");
-	struct mesh quad = gen_cardinal_quads();
 
 	gltf::Model tree_close { "media/models/tree.glb" };
 	gltf::Model model { "media/models/dragon.glb" };
 	gltf::Model duck { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
 	//gltf::Model duck { "media/models/iron_sphere.glb" };
-	const size_t DUCK_INSTANCE_COUNT = 10000;
+	const size_t DUCK_INSTANCE_COUNT = 4096;
 	duck.instance(DUCK_INSTANCE_COUNT);
 	gltf::Model character { "media/models/character.glb" };
 	//gltf::Model character { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
@@ -370,18 +271,17 @@ void run_terraingen(SDL_Window *window)
 		glBindBuffer(GL_ARRAY_BUFFER, duck.instance_buffer);
 		glm::mat4 *matrices = (glm::mat4 *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 		int index = 0;
-		for (int i = 0; i < 100; i++) {
-		float a = 50.f * float(i) / 4.f;
-		float b = 50.f * float(i) / 5.f;
-		for (int j = 0; j < 100; j++) {
-		float c = 50.f * float(j) / 6.f;
-		glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1000.f+a, 128.f+20*sin(start+b), 1000.f+c));
-		//glm::mat4 R = glm::rotate(start, glm::vec3(0.0, 1.0, 0.0));
-		glm::mat4 R = glm::rotate(start, glm::vec3(1.0, 0.0, 0.0));
-		glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.05f));
-		matrices[index++] = T * R * S;
-		}
-
+		for (int i = 0; i < 64; i++) {
+			float a = 50.f * float(i) / 4.f;
+			float b = 50.f * float(i) / 5.f;
+			for (int j = 0; j < 64; j++) {
+				float c = 50.f * float(j) / 6.f;
+				glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1000.f+a, 128.f+20*sin(start+b), 1000.f+c));
+				//glm::mat4 R = glm::rotate(start, glm::vec3(0.0, 1.0, 0.0));
+				glm::mat4 R = glm::rotate(start, glm::vec3(1.0, 0.0, 0.0));
+				glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.05f));
+				matrices[index++] = T * R * S;
+			}
 		}
 		glUnmapBuffer(GL_ARRAY_BUFFER);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -439,6 +339,8 @@ void run_terraingen(SDL_Window *window)
 		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);
 		undergrowth.uniform_float("amplitude", terrain.amplitude);
 		undergrowth.uniform_vec3("camerapos", cam.eye);
+		undergrowth.uniform_vec4("split", shadow.splitdepth);
+		undergrowth.uniform_mat4_array("shadowspace", shadowspace);
 		glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1024.f, 128.f, 1024.f));
 		undergrowth.uniform_mat4("model", T);
 		glDisable(GL_CULL_FACE);
@@ -446,7 +348,6 @@ void run_terraingen(SDL_Window *window)
 		activate_texture(GL_TEXTURE1, GL_TEXTURE_2D, terrain.normalmap);
 		activate_texture(GL_TEXTURE2, GL_TEXTURE_2D, terrain.occlusmap);
 		activate_texture(GL_TEXTURE3, GL_TEXTURE_2D, terrain.detailmap);
-		activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, grass_texture);
 		glBindVertexArray(grass.VAO);
 		glDrawArrays(GL_POINTS, 0, grass.count);
 		glEnable(GL_CULL_FACE);

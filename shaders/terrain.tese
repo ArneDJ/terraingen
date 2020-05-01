@@ -5,7 +5,6 @@ layout(binding = 0) uniform sampler2D heightmap;
 uniform mat4 VIEW_PROJECT;
 uniform float amplitude;
 uniform float mapscale;
-uniform vec3 split;
 
 layout(quads, fractional_even_spacing, ccw) in;
 

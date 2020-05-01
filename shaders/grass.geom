@@ -2,7 +2,7 @@
 
 layout (points) in;
 layout (triangle_strip) out;
-layout (max_vertices = 45) out;
+layout (max_vertices = 60) out;
 
 layout(binding = 0) uniform sampler2D heightmap;
 uniform mat4 VIEW_PROJECT;
@@ -14,6 +14,7 @@ uniform vec3 camerapos;
 out GEOM {
 	vec3 position;
 	vec2 texcoord;
+	float zclipspace;
 } geom;
 
 float rand(vec2 co){
@@ -48,14 +49,17 @@ void make_triangle(vec3 a, vec3 b, vec3 c, vec3 position)
 	gl_Position = mvpMatrix * vec4((a*stretch)+position, 1.0);
 	geom.texcoord = pos_to_texcoord(a);
 	geom.position = a+position;
+	geom.zclipspace = gl_Position.z;
 	EmitVertex();
 	gl_Position = mvpMatrix * vec4((b*stretch)+position, 1.0);
 	geom.texcoord = pos_to_texcoord(b);
 	geom.position = b+position;
+	geom.zclipspace = gl_Position.z;
 	EmitVertex();
 	gl_Position = mvpMatrix * vec4((c*stretch)+position, 1.0);
 	geom.texcoord = pos_to_texcoord(c);
 	geom.position = c+position;
+	geom.zclipspace = gl_Position.z;
 	EmitVertex();
 	EndPrimitive();
 }
@@ -84,6 +88,8 @@ void main(void)
 
 		vec3 offset1 = vec3(1.0, 0.0, 0.0);
 		vec3 offset2 = vec3(0.0, 0.0, 1.0);
+		vec3 offset3 = vec3(0.0, 0.0, -1.0);
+
 		make_triangle(a, b, c, position+offset1);
 		make_triangle(b, c, d, position+offset1);
 		make_triangle(c, d, e, position+offset1);
@@ -95,6 +101,12 @@ void main(void)
 		make_triangle(c, d, e, position+offset2);
 		make_triangle(d, e, f, position+offset2);
 		make_triangle(e, f, g, position+offset2);
+
+		make_triangle(a, b, c, position+offset3);
+		make_triangle(b, c, d, position+offset3);
+		make_triangle(c, d, e, position+offset3);
+		make_triangle(d, e, f, position+offset3);
+		make_triangle(e, f, g, position+offset3);
 	}
 
 	// cardinal quad
