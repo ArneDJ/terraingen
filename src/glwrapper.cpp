@@ -58,7 +58,13 @@ struct mesh gen_patch_grid(const size_t sidelength, const float offset)
 	return patch;
 }
 
-struct mesh gen_quad(void)
+/*
+ * a -- b
+ * |	|
+ * |	|
+ * c -- d
+ */
+struct mesh gen_quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d)
 {
 	struct mesh quads {
 		.VAO = 0, .VBO = 0, .EBO = 0,
@@ -68,11 +74,20 @@ struct mesh gen_quad(void)
 	};
 
 	const GLfloat positions[] = {
+		d.x, d.y, d.z,
+		c.x, c.y, c.z,
+		a.x, a.y, a.z,
+		b.x, b.y, b.z,
+	};
+
+	/*
+	const GLfloat positions[] = {
 		1.0, -1.0, 0.0,
 		-1.0, -1.0, 0.0,
 		-1.0, 1.0, 0.0,
 		1.0, 1.0, 0.0,
 	};
+	*/
 
 	const GLfloat texcoords[] = {
 		1.0, 1.0,

@@ -11,7 +11,13 @@ struct mesh gen_patch_grid(const size_t sidelength, const float offset);
 
 struct mesh gen_mapcube(void);
 
-struct mesh gen_quad(void);
+/*
+ * a -- b
+ * |	|
+ * |	|
+ * c -- d
+ */
+struct mesh gen_quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d);
 
 struct mesh gen_cardinal_quads(void);
 

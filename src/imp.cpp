@@ -107,6 +107,28 @@ struct rawimage gen_occlusmap(const struct rawimage *heightmap)
 	return occlusmap;
 }
 
+void perlin_3D_image(unsigned char *image, size_t sidelength)
+{
+	FastNoise billow;
+	billow.SetNoiseType(FastNoise::SimplexFractal);
+	billow.SetFractalType(FastNoise::Billow);
+	billow.SetFrequency(0.01f);
+	billow.SetFractalOctaves(6);
+	billow.SetFractalLacunarity(2.0f);
+	billow.SetGradientPerturbAmp(40.f);
+
+	unsigned int index = 0;
+	for (int i = 0; i < sidelength; i++) {
+		for (int j = 0; j < sidelength; j++) {
+			for (int k = 0; k < sidelength; k++) {
+				float p = (billow.GetNoise(i, j, k) + 1.f) / 2.f;
+				image[index++] = p * 255.f;
+			}
+		}
+	}
+
+}
+
 void terrain_image(unsigned char *image, size_t sidelength, long seed, float freq)
 {
 	seed = 404;

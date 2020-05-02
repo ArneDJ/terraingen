@@ -114,6 +114,18 @@ Shader terrain_shader(void)
 	return shader;
 }
 
+Shader cloud_shader(void)
+{
+	struct shaderinfo pipeline[] = {
+		{GL_VERTEX_SHADER, "shaders/cloud.vert"},
+		{GL_FRAGMENT_SHADER, "shaders/cloud.frag"},
+		{GL_NONE, NULL}
+	};
+
+	Shader shader(pipeline);
+	return shader;
+}
+
 Shader skybox_shader(void)
 {
 	struct shaderinfo pipeline[] = {
@@ -163,6 +175,31 @@ Skybox init_skybox(void)
 	return skybox;
 }
 
+GLuint create_3D_texture(void)
+{
+	const size_t texsize = 128;
+
+	unsigned char *image = new unsigned char[texsize*texsize*texsize];
+	perlin_3D_image(image, texsize);
+
+	GLuint texture;
+
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_3D, texture);
+
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+	glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, texsize, texsize, texsize, 0, GL_RED, GL_UNSIGNED_BYTE, image);
+
+	delete [] image;
+
+	return texture;
+}
+
 void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -173,6 +210,7 @@ void run_terraingen(SDL_Window *window)
 	Shader terra = terrain_shader();
 	Shader sky = skybox_shader();
 	Shader depthpass = shadow_shader();
+	Shader wolken = cloud_shader();
 
 	Skybox skybox = init_skybox();
 
@@ -184,6 +222,9 @@ void run_terraingen(SDL_Window *window)
 	terrain.genheightmap(1024, 1.f);
 	terrain.gennormalmap();
 	terrain.genocclusmap();
+
+	struct mesh clouds = gen_quad(glm::vec3(0.f, 256.f, 0.f), glm::vec3(2.f*2048.f, 256.f, 0.f), glm::vec3(0.f, 256.f, 2.f*2048.f), glm::vec3(2.f*2048.f, 256.f, 2.f*2048.f));
+	GLuint cloud_texture = create_3D_texture();
 
 	GLuint distortion_map = load_DDS_texture("media/textures/distortion.dds");
 	Grass grass {
@@ -245,6 +286,7 @@ void run_terraingen(SDL_Window *window)
 		terra.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		undergrowth.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		woods.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
+		wolken.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		base.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		base.uniform_vec3("camerapos", cam.eye);
 		base.uniform_vec3("viewdir", cam.center);
@@ -269,6 +311,15 @@ void run_terraingen(SDL_Window *window)
 
 		sky.bind();
 		skybox.display();
+
+		wolken.bind();
+		wolken.uniform_float("time", start);
+	glDisable(GL_CULL_FACE);
+	activate_texture(GL_TEXTURE0, GL_TEXTURE_3D, cloud_texture);
+	glBindVertexArray(clouds.VAO);
+	glDrawElements(clouds.mode, clouds.ecount, GL_UNSIGNED_SHORT, NULL);
+	glEnable(GL_CULL_FACE);
+
 
 		undergrowth.bind();
 		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);
