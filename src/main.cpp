@@ -28,8 +28,7 @@
 #define NEAR_CLIP 0.1f
 #define FAR_CLIP 1600.f
 
-#define GRASS_DENSITY 10000
-#define TREES_DENSITY 50000
+#define GRASS_DENSITY 800000
 #define FOG_DENSITY 0.015f
 #define SHADOW_TEXTURE_SIZE 2048
 
@@ -59,26 +58,6 @@ Shader grass_shader(void)
 		{GL_VERTEX_SHADER, "shaders/grass.vert"},
 		{GL_GEOMETRY_SHADER, "shaders/grass.geom"},
 		{GL_FRAGMENT_SHADER, "shaders/grass.frag"},
-		{GL_NONE, NULL}
-	};
-
-	Shader shader(pipeline);
-
-	shader.bind();
-
-	glm::mat4 model = glm::mat4(1.f);
-	shader.uniform_mat4("model", model);
-	shader.uniform_vec3("fogcolor", glm::vec3(0.46, 0.7, 0.99));
-	shader.uniform_float("fogfactor", FOG_DENSITY);
-
-	return shader;
-}
-
-Shader distant_tree_shader(void)
-{
-	struct shaderinfo pipeline[] = {
-		{GL_VERTEX_SHADER, "shaders/distant_tree.vert"},
-		{GL_FRAGMENT_SHADER, "shaders/distant_tree.frag"},
 		{GL_NONE, NULL}
 	};
 
@@ -205,45 +184,42 @@ void run_terraingen(SDL_Window *window)
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 
 	Shader base = base_shader();
-	Shader woods = distant_tree_shader();
 	Shader undergrowth = grass_shader();
 	Shader terra = terrain_shader();
 	Shader sky = skybox_shader();
 	Shader depthpass = shadow_shader();
-	Shader wolken = cloud_shader();
+	Shader cloud = cloud_shader();
 
 	Skybox skybox = init_skybox();
 
-	Shadow shadow {
+	Shadow shadow = {
 		SHADOW_TEXTURE_SIZE,
 	};
 
-	Terrain terrain { 64, 32.f, 256.f };
+	Terrain terrain = { 64, 32.f, 256.f };
 	terrain.genheightmap(1024, 1.f);
 	terrain.gennormalmap();
 	terrain.genocclusmap();
 
-	struct mesh slice = gen_quad(glm::vec3(0.f, 512.f, 2048.f), glm::vec3(2048.f, 512.f, 2048.f), glm::vec3(0.f, 512.f, 0.f), glm::vec3(2048.f, 512.f, 0.f));
+	struct mesh slice = gen_quad(glm::vec3(-512.f, 512.f, 2048.f+512.f), glm::vec3(2048.f+512.f, 512.f, 2048.f+512.f), glm::vec3(-512.f, 512.f, -512.f), glm::vec3(2048.f+512.f, 512.f, -512.f));
 	GLuint cloud_texture = create_3D_texture();
 
-	GLuint distortion_map = load_DDS_texture("media/textures/distortion.dds");
-	Grass grass {
+	Grass grass = {
 		&terrain,
-		800000,
+		GRASS_DENSITY,
 		terrain.heightmap,
 		terrain.normalmap,
 		terrain.occlusmap,
 		terrain.detailmap,
-		distortion_map
+		load_DDS_texture("media/textures/distortion.dds"),
 	};
-	//struct mesh grass = gen_grass_roots(&terrain, glm::vec2(512.f, 512.f), glm::vec2(1536.f, 1536.f), 800000);
 
 	gltf::Model model { "media/models/dragon.glb" };
 	gltf::Model duck { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
-	gltf::Model character { "media/models/character.glb" };
-	//gltf::Model character { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
+	//gltf::Model character { "media/models/character.glb" };
+	gltf::Model character { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
 
-	Camera cam { 
+	Camera cam = { 
 		glm::vec3(1024.f, 128.f, 1024.f),
 		FOV,
 		float(WINDOW_WIDTH) / float(WINDOW_HEIGHT),
@@ -274,6 +250,7 @@ void run_terraingen(SDL_Window *window)
 				depthpass.uniform_bool("instanced", false);
 				model.display(&depthpass, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
 				duck.display(&depthpass, glm::vec3(970.f, 50.f, 970.f), 5.f);
+				character.display(&depthpass, glm::vec3(1100.f, 50.f, 980.f), 5.f);
 			}
 			shadow.disable();
 		}
@@ -285,8 +262,7 @@ void run_terraingen(SDL_Window *window)
 		sky.uniform_mat4("view", cam.view);
 		terra.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		undergrowth.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
-		woods.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
-		wolken.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
+		cloud.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		base.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		base.uniform_vec3("camerapos", cam.eye);
 		base.uniform_vec3("viewdir", cam.center);
@@ -308,21 +284,22 @@ void run_terraingen(SDL_Window *window)
 
 		model.display(&base, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
 		duck.display(&base, glm::vec3(970.f, 50.f, 970.f), 5.f);
+		character.display(&base, glm::vec3(1100.f, 50.f, 980.f), 5.f);
 
 		sky.bind();
 		skybox.display();
 
-		wolken.bind();
-		wolken.uniform_float("time", start);
+		cloud.bind();
+		cloud.uniform_float("time", start);
 		glDisable(GL_CULL_FACE);
 		activate_texture(GL_TEXTURE0, GL_TEXTURE_3D, cloud_texture);
 		glBindVertexArray(slice.VAO);
+		/* TODO instead of transforming put each slice in vertex buffer */
 		for (int i = 0; i < 64; i++) {
-			wolken.uniform_mat4("tc_rotate", glm::translate(glm::mat4(1.0), glm::vec3(0.f, 2.f*(-i), 0.f)));
+			cloud.uniform_mat4("tc_rotate", glm::translate(glm::mat4(1.0), glm::vec3(0.f, 2.f*(-i), 0.f)));
 			glDrawElements(slice.mode, slice.ecount, GL_UNSIGNED_SHORT, NULL);
 		}
 		glEnable(GL_CULL_FACE);
-
 
 		undergrowth.bind();
 		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);

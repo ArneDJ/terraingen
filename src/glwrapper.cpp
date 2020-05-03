@@ -66,7 +66,7 @@ struct mesh gen_patch_grid(const size_t sidelength, const float offset)
  */
 struct mesh gen_quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d)
 {
-	struct mesh quads {
+	struct mesh quads = {
 		.VAO = 0, .VBO = 0, .EBO = 0,
 		.mode = GL_TRIANGLES,
 		.ecount = 6,
@@ -117,7 +117,7 @@ struct mesh gen_quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d)
 // 3 quads used for grass meshes
 struct mesh gen_cardinal_quads(void)
 {
-	struct mesh quads {
+	struct mesh quads = {
 		.VAO = 0, .VBO = 0, .EBO = 0,
 		.mode = GL_TRIANGLES,
 		.ecount = 18,

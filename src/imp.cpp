@@ -67,7 +67,7 @@ float sample_image(int x, int y, const struct rawimage *image, unsigned int chan
 
 struct rawimage gen_normalmap(const struct rawimage *heightmap)
 {
-	struct rawimage normalmap {
+	struct rawimage normalmap = {
 		.data = new unsigned char[heightmap->width * heightmap->height * RGB_CHANNEL],
 		.nchannels = RGB_CHANNEL,
 		.width = heightmap->width,
@@ -89,7 +89,7 @@ struct rawimage gen_normalmap(const struct rawimage *heightmap)
 
 struct rawimage gen_occlusmap(const struct rawimage *heightmap)
 {
-	struct rawimage occlusmap {
+	struct rawimage occlusmap = {
 		.data = new unsigned char[heightmap->width * heightmap->height],
 		.nchannels = RED_CHANNEL,
 		.width = heightmap->width,
@@ -112,16 +112,18 @@ void perlin_3D_image(unsigned char *image, size_t sidelength)
 	FastNoise billow;
 	billow.SetNoiseType(FastNoise::SimplexFractal);
 	billow.SetFractalType(FastNoise::Billow);
-	billow.SetFrequency(0.05f);
+	billow.SetFrequency(0.03f);
 	billow.SetFractalOctaves(6);
 	billow.SetFractalLacunarity(2.0f);
+
+	const float space = 0.5; // space between the clouds
 
 	unsigned int index = 0;
 	for (int i = 0; i < sidelength; i++) {
 		for (int j = 0; j < sidelength; j++) {
 			for (int k = 0; k < sidelength; k++) {
 				float p = (billow.GetNoise(i, j, k) + 1.f) / 2.f;
-				p = p - 0.5f;
+				p = p - space;
 				image[index++] = glm::clamp(p, 0.f, 1.f) * 255.f;
 			}
 		}

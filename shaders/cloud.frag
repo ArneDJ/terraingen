@@ -15,7 +15,6 @@ void main(void)
 {
 	float wind = 0.01 * time;
 	color = texture(cloudmap, vec3(fragment.position.x+wind, fragment.position.y+wind, fragment.position.z+wind)).rrrr;
-	if (color.a > 0.01) {
-		color.rgb = vec3(1.0, 0.9, 0.9);
-	}
+
+	color.rgb = vec3(1.0, 0.9, 0.9) * (1.0 - color.a);
 }

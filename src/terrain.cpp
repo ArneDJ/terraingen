@@ -89,7 +89,7 @@ Terrain::~Terrain(void)
 	
 void Terrain::genheightmap(size_t imageres, float freq)
 {
-	struct rawimage image {
+	struct rawimage image = {
 		.data = new unsigned char[imageres*imageres],
 		.nchannels = 1,
 		.width = imageres,

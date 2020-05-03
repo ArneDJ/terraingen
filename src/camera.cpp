@@ -59,10 +59,3 @@ void Camera::update(float delta)
 
 	view = glm::lookAt(eye, eye + center, up);
 }
-
-/*
-glm::mat4 Camera::view(void) const
-{
-	return glm::lookAt(eye, eye + center, up);
-}
-*/
