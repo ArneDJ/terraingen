@@ -12,6 +12,12 @@ struct vertex {
 	glm::vec4 weights;
 };
 
+struct bufferobject {
+	GLuint VAO;
+	GLuint VBO;
+	GLuint EBO;
+};
+
 namespace gltf {
 
 struct node_t;
@@ -150,18 +156,34 @@ struct node_t {
 
 class Model {
 public:
-	void importf(std::string fpath);
-	void updateAnimation(uint32_t index, float time);
-	void display(Shader *shader, float scale);
+	Model(std::string fpath)
+	{
+		importf(fpath);
+	}
+	~Model(void)
+	{
+		for (GLuint &texture : textures) {
+			if (glIsTexture(texture) == GL_TRUE) {
+				glDeleteTextures(1, &texture);
+			}
+		}
+		glDeleteBuffers(1, &bufferbind.EBO);
+		glDeleteBuffers(1, &bufferbind.VBO);
+		glDeleteVertexArrays(1, &bufferbind.VAO);
+	}
+	void update_animation(uint32_t index, float time);
+	void display(Shader *shader, glm::vec3 translation, float scale);
 	std::vector<animation_t> animations;
 private:
-	GLuint VAO = 0;
+//	GLuint VAO = 0;
+	struct bufferobject bufferbind;
 	std::vector<node_t*> nodes;
 	std::vector<node_t*> linearNodes;
 	std::vector<skin_t*> skins;
 	std::vector<GLuint> textures;
 	std::vector<material_t> materials;
 private:
+	void importf(std::string fpath);
 	void load_textures(tinygltf::Model &gltfmodel);
 	void load_materials(tinygltf::Model &gltfmodel);
 	void load_node(gltf::node_t *parent, const tinygltf::Node &node, uint32_t nodeIndex, const tinygltf::Model &model, std::vector<uint32_t> &indexBuffer, std::vector<vertex> &vertexBuffer);

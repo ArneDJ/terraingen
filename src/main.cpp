@@ -194,14 +194,11 @@ void run_terraingen(SDL_Window *window)
 		load_DDS_texture("media/textures/distortion.dds"),
 	};
 
-	gltf::Model model;
-	model.importf("media/models/dragon.glb");
-	gltf::Model duck;
-	duck.importf("media/models/samples/khronos/Duck/glTF-Binary/Duck.glb");
-	gltf::Model character;
-	character.importf("media/models/character.glb");
-	//gltf::Model duck { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
-	//gltf::Model character { "media/models/character.glb" };
+	glm::vec3 translation = glm::vec3(1100.f, 38.f, 980.f);
+	gltf::Model model = { "media/models/dragon.glb" };
+	gltf::Model duck = { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
+	gltf::Model character = { "media/models/character.glb" };
+	//gltf::Model character { "media/models/samples/khronos/Fox/glTF-Binary/Fox.glb" };
 	//gltf::Model character { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
 
 	Camera cam = { 
@@ -229,7 +226,7 @@ void run_terraingen(SDL_Window *window)
 		timer += delta;
 		if (character.animations.empty() == false) {
 			if (timer > character.animations[item_current].end) { timer -= character.animations[item_current].end; }
-			character.updateAnimation(item_current, timer);
+			character.update_animation(item_current, timer);
 		}
 
 		if (frames % 4 == 0) {
@@ -240,10 +237,10 @@ void run_terraingen(SDL_Window *window)
 				shadow.binddepth(i);
 				depthpass.uniform_mat4("VIEW_PROJECT", shadow.shadowspace[i]);
 				depthpass.uniform_bool("instanced", false);
-				//model.display(&depthpass, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
-				//duck.display(&depthpass, glm::vec3(970.f, 50.f, 970.f), 5.f);
+				model.display(&depthpass, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
+				duck.display(&depthpass, glm::vec3(970.f, 50.f, 970.f), 5.f);
 				//character.display(&depthpass, glm::vec3(1100.f, 38.f, 980.f), 1.f);
-				character.display(&depthpass, 1.f);
+				character.display(&depthpass, translation, 1.f);
 			}
 			shadow.disable();
 		}
@@ -275,10 +272,10 @@ void run_terraingen(SDL_Window *window)
 		shadow.bindtextures(GL_TEXTURE10);
 		terrain.display();
 
-		//model.display(&base, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
-		//duck.display(&base, glm::vec3(970.f, 50.f, 970.f), 5.f);
+		model.display(&base, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
+		duck.display(&base, glm::vec3(970.f, 50.f, 970.f), 5.f);
 		//character.display(&base, glm::vec3(1100.f, 38.f, 980.f), 1.f);
-		character.display(&base, 1.f);
+		character.display(&base, translation, 1.f);
 
 		sky.bind();
 		skybox.display();

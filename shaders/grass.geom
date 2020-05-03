@@ -38,7 +38,7 @@ vec2 pos_to_texcoord(vec3 position)
 
 void make_triangle(vec3 a, vec3 b, vec3 c, vec3 position)
 {
-	float stretch = 2.0;
+	float stretch = 1.0;
 
 	position.y = amplitude * texture(heightmap, mapscale*position.xz).r;
 	mat4 rotation = rotationY(rand(position.xz)*2.0);
@@ -91,22 +91,21 @@ void main(void)
 	float dist = distance(camerapos, position);
 	//float blending = 1.0 / (0.01*dist);
 
-	if (dist < 150.0) {
-
+	if (dist < 100.0) {
 		float tiling = 0.005;
-	vec2 uv = tiling*position.xz + frequency * time;
-	vec2 windsample = (texture(windmap, uv).rg * 2.0 - 1.0) * 2.0;
-	vec3 wind = normalize(vec3(windsample.x, windsample.y, 0.0));
-	mat3 rotation = AngleAxis3x3(windsample.x, wind) * AngleAxis3x3(windsample.y, wind);
+		vec2 uv = tiling*position.xz + frequency * time;
+		vec2 windsample = (texture(windmap, uv).rg * 2.0 - 1.0) * 2.0;
+		vec3 wind = normalize(vec3(windsample.x, windsample.y, 0.0));
+		mat3 rotation = AngleAxis3x3(windsample.x, wind) * AngleAxis3x3(windsample.y, wind);
 
-	// individual grass blade
-	vec3 a = vec3(0.0, -1.0, 0.0);
-	vec3 b = vec3(0.19, -1.0, 0.0);
-	vec3 c = vec3(0.11, 0.41, 0.0);
-	vec3 d = rotation * vec3(0.28, 0.41, 0.0);
-	vec3 e = rotation * vec3(0.28, 0.78, 0.0);
-	vec3 f = rotation * vec3(0.42, 0.78, 0.0);
-	vec3 g = rotation * vec3(0.58, 1.0, 0.0);
+		// individual grass blade
+		vec3 a = vec3(0.0, -1.0, 0.0);
+		vec3 b = vec3(0.19, -1.0, 0.0);
+		vec3 c = vec3(0.11, 0.41, 0.0);
+		vec3 d = rotation * vec3(0.28, 0.41, 0.0);
+		vec3 e = rotation * vec3(0.28, 0.78, 0.0);
+		vec3 f = rotation * vec3(0.42, 0.78, 0.0);
+		vec3 g = rotation * vec3(0.58, 1.0, 0.0);
 
 		make_triangle(a, b, c, position);
 		make_triangle(b, c, d, position);
@@ -136,33 +135,4 @@ void main(void)
 		make_triangle(d, e, f, position+offset3);
 		make_triangle(e, f, g, position+offset3);
 	}
-
-	// cardinal quad
-	/*
-	vec3 a = vec3(1.0, -1.0, 0.0);
-	vec3 b = vec3(-1.0, -1.0, 0.0);
-	vec3 c = vec3(-1.0, 1.0, 0.0);
-	vec3 d = vec3(1.0, 1.0, 0.0);
-
-	vec3 e = vec3(0.7, -1.0, 0.7);
-	vec3 f = vec3(-0.7, -1.0, -0.7);
-	vec3 g = vec3(-0.7, 1.0, -0.7);
-	vec3 h = vec3(0.7, 1.0, 0.7);
-
-	vec3 i = vec3(0.7, -1.0, -0.7);
-	vec3 j = vec3(-0.7, -1.0, 0.7);
-	vec3 k = vec3(-0.7, 1.0, 0.7);
-	vec3 l = vec3(0.7, 1.0, -0.7);
-
-	make_triangle(a, b, c);
-	make_triangle(b, c, d);
-	make_triangle(c, d, e);
-	make_triangle(d, e, f);
-	make_triangle(e, f, g);
-	make_triangle(f, g, h);
-	make_triangle(g, h, i);
-	make_triangle(h, i, j);
-	make_triangle(i, j, k);
-	make_triangle(j, k, l);
-	*/
 }

@@ -22,22 +22,29 @@
 #include "shader.h"
 #include "gltf.h"
 
-static GLuint bind_VAO(std::vector<uint32_t> &indexbuffer, std::vector<vertex> &vertexbuffer)
+static struct bufferobject bind_buffers(std::vector<uint32_t> &indexbuffer, std::vector<vertex> &vertexbuffer)
 {
-	GLuint VAO;
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
+	// https://www.khronos.org/opengl/wiki/Buffer_Object
+	// In some cases, data stored in a buffer object will not be changed once it is uploaded. For example, vertex data can be static: set once and used many times.
+	// For these cases, you set flags​ to 0 and use data​ as the initial upload. From then on, you simply use the data in the buffer. This requires that you have assembled all of the static data up-front.
+	const GLbitfield flags = 0;
 
-	GLuint EBO;
-	glGenBuffers(1, &EBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t)*indexbuffer.size(), indexbuffer.data(), GL_STATIC_DRAW);
+	struct bufferobject binding{0};
 
-	GLuint VBO;
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	//GLuint VAO;
+	glGenVertexArrays(1, &binding.VAO);
+	glBindVertexArray(binding.VAO);
 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex)*vertexbuffer.size(), vertexbuffer.data(), GL_STATIC_DRAW);
+	//GLuint EBO;
+	glGenBuffers(1, &binding.EBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, binding.EBO);
+	glBufferStorage(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t)*indexbuffer.size(), indexbuffer.data(), flags);
+
+	//GLuint VBO;
+	glGenBuffers(1, &binding.VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, binding.VBO);
+	glBufferStorage(GL_ARRAY_BUFFER, sizeof(vertex)*vertexbuffer.size(), vertexbuffer.data(), flags);
+
 	// positions
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), BUFFER_OFFSET(offsetof(vertex, position)));
 	glEnableVertexAttribArray(0);
@@ -54,52 +61,27 @@ static GLuint bind_VAO(std::vector<uint32_t> &indexbuffer, std::vector<vertex> &
 	glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(vertex), BUFFER_OFFSET(offsetof(vertex, weights)));
 	glEnableVertexAttribArray(4);
 
-	return VAO;
+	return binding;
 }
 
 static GLuint load_gltf_image(tinygltf::Image &gltfimage)
 {
-	 GLuint texture;
+	GLuint texture;
 
- struct rawimage image {
-  .data = &gltfimage.image[0],
-  .nchannels = (unsigned int)gltfimage.component,
-  .width = size_t(gltfimage.width),
-  .height = size_t(gltfimage.height)
- };
+	struct rawimage image = {
+		.data = &gltfimage.image[0],
+		.nchannels = (unsigned int)gltfimage.component,
+		.width = size_t(gltfimage.width),
+		.height = size_t(gltfimage.height)
+	};
 
- GLenum format = GL_RGBA;
- GLenum internalformat = GL_RGB5_A1;
+	GLenum format = GL_RGBA;
+	GLenum internalformat = GL_RGB5_A1;
 
- texture = bind_mipmap_texture(&image, internalformat, format, GL_UNSIGNED_BYTE);
+	texture = bind_mipmap_texture(&image, internalformat, format, GL_UNSIGNED_BYTE);
 
- return texture;
-
+	return texture;
 }
-
-/*
-static inline int32_t tinygltfsize(uint32_t ty) 
-{
-	if (ty == TINYGLTF_TYPE_SCALAR) {
-		return 1;
-	} else if (ty == TINYGLTF_TYPE_VEC2) {
-		return 2;
-	} else if (ty == TINYGLTF_TYPE_VEC3) {
-		return 3;
-	} else if (ty == TINYGLTF_TYPE_VEC4) {
-		return 4;
-	} else if (ty == TINYGLTF_TYPE_MAT2) {
-		return 4;
-	} else if (ty == TINYGLTF_TYPE_MAT3) {
-		return 9;
-	} else if (ty == TINYGLTF_TYPE_MAT4) {
-		return 16;
-	} else {
-		// Unknown componenty type
-		return -1;
-	}
-}
-*/
 
 // fills an index buffer and returns the index count
 static uint32_t load_indices(const tinygltf::Model &model, const tinygltf::Primitive &primitive, std::vector<uint32_t> &indexbuffer)
@@ -223,9 +205,9 @@ void gltf::Model::load_mesh(const tinygltf::Model &model, const tinygltf::Mesh &
 			vertexbuffer.push_back(vert);
 		}
 
-		gltf::primitive_t *newPrimitive = new struct primitive_t(indexstart, indexcount, vertexstart, vertexcount, primitive.material > -1 ? materials[primitive.material] : materials.back());
+		gltf::primitive_t *newprim = new struct primitive_t(indexstart, indexcount, vertexstart, vertexcount, primitive.material > -1 ? materials[primitive.material] : materials.back());
 
-		newmesh->primitives.push_back(newPrimitive);
+		newmesh->primitives.push_back(newprim);
 	}
 }
 
@@ -492,7 +474,7 @@ void gltf::Model::importf(std::string fpath)
 		load_node(nullptr, node, scene.nodes[i], model, indexbuffer, vertexbuffer);
 	}
 
-	VAO = bind_VAO(indexbuffer, vertexbuffer);
+	bufferbind = bind_buffers(indexbuffer, vertexbuffer);
 
 	if (model.animations.size() > 0) { load_animations(model); }
 	load_skins(model);
@@ -505,7 +487,7 @@ void gltf::Model::importf(std::string fpath)
 	}
 }
 
-void gltf::Model::updateAnimation(uint32_t index, float time)
+void gltf::Model::update_animation(uint32_t index, float time)
 {
 	if (animations.empty()) {
 		std::cout << ".glTF does not contain animation." << std::endl;
@@ -563,18 +545,14 @@ void gltf::Model::updateAnimation(uint32_t index, float time)
 	}
 }
 
-void gltf::Model::display(Shader *shader, float scale)
+void gltf::Model::display(Shader *shader, glm::vec3 translation, float scale)
 {
-	glm::vec3 translation = glm::vec3(1024.f, 128.f, 1024.f);
-	glBindVertexArray(VAO);
+	glBindVertexArray(bufferbind.VAO);
 
 	shader->uniform_bool("skinned", !skins.empty());
 
 	for (gltf::node_t *node : linearNodes) {
 		if (node->mesh) {
-			//glm::mat4 m = node->getMatrix();
-			//glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(scale));
-			//shader->uniform_mat4("model", S * m);
 			glm::mat4 m = node->getMatrix();
 			glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(scale));
 			glm::mat4 T = glm::translate(glm::mat4(1.f), translation);
