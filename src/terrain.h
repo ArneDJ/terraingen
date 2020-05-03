@@ -60,3 +60,17 @@ private:
 	GLuint cubemap;
 	struct mesh cube;
 };
+
+class Clouds {
+public:
+	Clouds(size_t terrain_length, float terrain_amp, size_t texsize, float freq, float cloud_distance);
+	~Clouds(void) 
+	{
+		delete_mesh(&slices);
+		if (glIsTexture(texture) == GL_TRUE) { glDeleteTextures(1, &texture); }
+	}
+	void display(void);
+private:
+	struct mesh slices; // mesh containing slices to sample a 3D texture
+	GLuint texture; // 3D texture containing noise 
+};

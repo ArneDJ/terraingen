@@ -179,6 +179,52 @@ GLuint create_3D_texture(void)
 	return texture;
 }
 
+struct mesh create_slices(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, size_t slices_count, float offset)
+{
+	struct mesh slices = {
+		.VAO = 0, .VBO = 0, .EBO = 0,
+		.mode = GL_TRIANGLES,
+		.ecount = GLsizei(6*slices_count),
+		.indexed = true
+	};
+
+	// starts with the top slice and goes down to the bottom slice
+	std::vector<glm::vec3> positions;
+	for (int i = 0; i < slices_count; i++) {
+		float y = offset * i;
+		positions.push_back(glm::vec3(d.x, d.y - y, d.z));
+		positions.push_back(glm::vec3(c.x, c.y - y, c.z));
+		positions.push_back(glm::vec3(a.x, a.y - y, a.z));
+		positions.push_back(glm::vec3(b.x, b.y - y, b.z));
+	}
+
+	std::vector<GLushort> indices;
+	for (int i = 0; i < slices_count; i++) {
+		indices.push_back((i * 4) + 0);
+		indices.push_back((i * 4) + 1);
+		indices.push_back((i * 4) + 2);
+		indices.push_back((i * 4) + 0);
+		indices.push_back((i * 4) + 2);
+		indices.push_back((i * 4) + 3);
+	}
+
+	glGenVertexArrays(1, &slices.VAO);
+	glBindVertexArray(slices.VAO);
+
+	glGenBuffers(1, &slices.EBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, slices.EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort)*indices.size(), &indices[0], GL_STATIC_DRAW); 
+
+	glGenBuffers(1, &slices.VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, slices.VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*positions.size(), &positions[0], GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+	return slices;
+}
+
 void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -201,8 +247,13 @@ void run_terraingen(SDL_Window *window)
 	terrain.gennormalmap();
 	terrain.genocclusmap();
 
-	struct mesh slice = gen_quad(glm::vec3(-512.f, 512.f, 2048.f+512.f), glm::vec3(2048.f+512.f, 512.f, 2048.f+512.f), glm::vec3(-512.f, 512.f, -512.f), glm::vec3(2048.f+512.f, 512.f, -512.f));
-	GLuint cloud_texture = create_3D_texture();
+	Clouds clouds = {
+		terrain.sidelength,
+		terrain.amplitude,
+		128,
+		0.02f,
+		0.5f,
+	};
 
 	Grass grass = {
 		&terrain,
@@ -250,7 +301,7 @@ void run_terraingen(SDL_Window *window)
 				depthpass.uniform_bool("instanced", false);
 				model.display(&depthpass, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
 				duck.display(&depthpass, glm::vec3(970.f, 50.f, 970.f), 5.f);
-				character.display(&depthpass, glm::vec3(1100.f, 50.f, 980.f), 5.f);
+				character.display(&depthpass, glm::vec3(1100.f, 38.f, 980.f), 1.f);
 			}
 			shadow.disable();
 		}
@@ -284,22 +335,14 @@ void run_terraingen(SDL_Window *window)
 
 		model.display(&base, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
 		duck.display(&base, glm::vec3(970.f, 50.f, 970.f), 5.f);
-		character.display(&base, glm::vec3(1100.f, 50.f, 980.f), 5.f);
+		character.display(&base, glm::vec3(1100.f, 38.f, 980.f), 1.f);
 
 		sky.bind();
 		skybox.display();
 
 		cloud.bind();
 		cloud.uniform_float("time", start);
-		glDisable(GL_CULL_FACE);
-		activate_texture(GL_TEXTURE0, GL_TEXTURE_3D, cloud_texture);
-		glBindVertexArray(slice.VAO);
-		/* TODO instead of transforming put each slice in vertex buffer */
-		for (int i = 0; i < 64; i++) {
-			cloud.uniform_mat4("tc_rotate", glm::translate(glm::mat4(1.0), glm::vec3(0.f, 2.f*(-i), 0.f)));
-			glDrawElements(slice.mode, slice.ecount, GL_UNSIGNED_SHORT, NULL);
-		}
-		glEnable(GL_CULL_FACE);
+		clouds.display();
 
 		undergrowth.bind();
 		undergrowth.uniform_float("mapscale", 1.f / terrain.sidelength);

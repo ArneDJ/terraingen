@@ -15,6 +15,75 @@
 #include "glwrapper.h"
 #include "terrain.h"
 
+static struct mesh create_slices(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, size_t slices_count, float offset)
+{
+	struct mesh slices = {
+		.VAO = 0, .VBO = 0, .EBO = 0,
+		.mode = GL_TRIANGLES,
+		.ecount = GLsizei(6*slices_count),
+		.indexed = true
+	};
+
+	// starts with the top slice and goes down to the bottom slice
+	std::vector<glm::vec3> positions;
+	for (int i = 0; i < slices_count; i++) {
+		float y = offset * i;
+		positions.push_back(glm::vec3(d.x, d.y - y, d.z));
+		positions.push_back(glm::vec3(c.x, c.y - y, c.z));
+		positions.push_back(glm::vec3(a.x, a.y - y, a.z));
+		positions.push_back(glm::vec3(b.x, b.y - y, b.z));
+	}
+
+	std::vector<GLushort> indices;
+	for (int i = 0; i < slices_count; i++) {
+		indices.push_back((i * 4) + 0);
+		indices.push_back((i * 4) + 1);
+		indices.push_back((i * 4) + 2);
+		indices.push_back((i * 4) + 0);
+		indices.push_back((i * 4) + 2);
+		indices.push_back((i * 4) + 3);
+	}
+
+	glGenVertexArrays(1, &slices.VAO);
+	glBindVertexArray(slices.VAO);
+
+	glGenBuffers(1, &slices.EBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, slices.EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort)*indices.size(), &indices[0], GL_STATIC_DRAW); 
+
+	glGenBuffers(1, &slices.VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, slices.VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*positions.size(), &positions[0], GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+	return slices;
+}
+
+static GLuint create_cloud_texture(size_t texsize, float frequency, float cloud_distance)
+{
+	unsigned char *image = new unsigned char[texsize*texsize*texsize];
+	perlin_3D_image(image, texsize);
+
+	GLuint texture;
+
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_3D, texture);
+
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+	glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, texsize, texsize, texsize, 0, GL_RED, GL_UNSIGNED_BYTE, image);
+
+	delete [] image;
+
+	return texture;
+}
+
 // fills a vertex buffer with the positions of the grass roots, to be used in a geometry shader
 static struct mesh gen_grass_roots(const Terrain *terrain, glm::vec2 min, glm::vec2 max, size_t density)
 {
@@ -180,3 +249,21 @@ void Skybox::display(void) const
 	glDrawElements(cube.mode, cube.ecount, GL_UNSIGNED_SHORT, NULL);
 	glDepthFunc(GL_LESS);
 };
+
+Clouds::Clouds(size_t terrain_length, float terrain_amp, size_t texsize, float freq, float cloud_distance)
+{
+	float overcast = 0.25f * terrain_length;
+	float height = 2.f * terrain_amp;
+	slices = create_slices(glm::vec3(-overcast, height, terrain_length+overcast), glm::vec3(terrain_length+overcast, height, terrain_length+overcast), glm::vec3(-overcast, height, -overcast), glm::vec3(terrain_length+overcast, height, -overcast), 64, 2.f);
+
+	texture = create_cloud_texture(texsize, freq, cloud_distance);
+}
+
+void Clouds::display(void)
+{
+	glDisable(GL_CULL_FACE);
+	activate_texture(GL_TEXTURE0, GL_TEXTURE_3D, texture);
+	glBindVertexArray(slices.VAO);
+	glDrawElements(slices.mode, slices.ecount, GL_UNSIGNED_SHORT, NULL);
+	glEnable(GL_CULL_FACE);
+}

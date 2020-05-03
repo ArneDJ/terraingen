@@ -7,7 +7,6 @@ layout(location = 0) out vec4 color;
 uniform float time;
 
 in VERTEX {
-	vec2 texcoord;
 	vec3 position;
 } fragment;
 
