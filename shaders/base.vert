@@ -26,9 +26,11 @@ void main(void)
 	vertex.texcoord = texcoord;
 
 	mat4 final_model = model;
+	/*
 	if (instanced == true) {
 		final_model = instance_model;
 	}
+	*/
 
 	if (skinned == true) {
 		mat4 skin_matrix =

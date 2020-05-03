@@ -49,11 +49,11 @@ static struct mesh create_slices(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec
 
 	glGenBuffers(1, &slices.EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, slices.EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort)*indices.size(), &indices[0], GL_STATIC_DRAW); 
+	glBufferStorage(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort)*indices.size(), &indices[0], 0);
 
 	glGenBuffers(1, &slices.VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, slices.VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*positions.size(), &positions[0], GL_STATIC_DRAW);
+	glBufferStorage(GL_ARRAY_BUFFER, sizeof(glm::vec3)*positions.size(), &positions[0], 0);
 
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
