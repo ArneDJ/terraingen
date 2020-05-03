@@ -223,7 +223,7 @@ void run_terraingen(SDL_Window *window)
 	terrain.gennormalmap();
 	terrain.genocclusmap();
 
-	struct mesh clouds = gen_quad(glm::vec3(0.f, 256.f, 0.f), glm::vec3(2.f*2048.f, 256.f, 0.f), glm::vec3(0.f, 256.f, 2.f*2048.f), glm::vec3(2.f*2048.f, 256.f, 2.f*2048.f));
+	struct mesh slice = gen_quad(glm::vec3(0.f, 512.f, 2048.f), glm::vec3(2048.f, 512.f, 2048.f), glm::vec3(0.f, 512.f, 0.f), glm::vec3(2048.f, 512.f, 0.f));
 	GLuint cloud_texture = create_3D_texture();
 
 	GLuint distortion_map = load_DDS_texture("media/textures/distortion.dds");
@@ -314,11 +314,14 @@ void run_terraingen(SDL_Window *window)
 
 		wolken.bind();
 		wolken.uniform_float("time", start);
-	glDisable(GL_CULL_FACE);
-	activate_texture(GL_TEXTURE0, GL_TEXTURE_3D, cloud_texture);
-	glBindVertexArray(clouds.VAO);
-	glDrawElements(clouds.mode, clouds.ecount, GL_UNSIGNED_SHORT, NULL);
-	glEnable(GL_CULL_FACE);
+		glDisable(GL_CULL_FACE);
+		activate_texture(GL_TEXTURE0, GL_TEXTURE_3D, cloud_texture);
+		glBindVertexArray(slice.VAO);
+		for (int i = 0; i < 64; i++) {
+			wolken.uniform_mat4("tc_rotate", glm::translate(glm::mat4(1.0), glm::vec3(0.f, 2.f*(-i), 0.f)));
+			glDrawElements(slice.mode, slice.ecount, GL_UNSIGNED_SHORT, NULL);
+		}
+		glEnable(GL_CULL_FACE);
 
 
 		undergrowth.bind();

@@ -112,17 +112,17 @@ void perlin_3D_image(unsigned char *image, size_t sidelength)
 	FastNoise billow;
 	billow.SetNoiseType(FastNoise::SimplexFractal);
 	billow.SetFractalType(FastNoise::Billow);
-	billow.SetFrequency(0.01f);
+	billow.SetFrequency(0.05f);
 	billow.SetFractalOctaves(6);
 	billow.SetFractalLacunarity(2.0f);
-	billow.SetGradientPerturbAmp(40.f);
 
 	unsigned int index = 0;
 	for (int i = 0; i < sidelength; i++) {
 		for (int j = 0; j < sidelength; j++) {
 			for (int k = 0; k < sidelength; k++) {
 				float p = (billow.GetNoise(i, j, k) + 1.f) / 2.f;
-				image[index++] = p * 255.f;
+				p = p - 0.5f;
+				image[index++] = glm::clamp(p, 0.f, 1.f) * 255.f;
 			}
 		}
 	}
@@ -162,7 +162,7 @@ void terrain_image(unsigned char *image, size_t sidelength, long seed, float fre
 	perturb.SetFractalLacunarity(2.0f);
 	perturb.SetGradientPerturbAmp(300.f);
 
-	const float mountain_amp = 0.8f; // best values between 0.4 and 1.0
+	const float mountain_amp = 1.0f; // best values between 0.4 and 1.0
 	const float field_amp = 0.3f; // best values between 0.2 and 0.4
 
 	float max = 1.f;

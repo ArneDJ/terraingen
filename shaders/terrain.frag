@@ -191,7 +191,7 @@ void main(void)
 
 	float strata = warpfbm(0.05 * fragment.position.xz);
 
-	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.45, 0.55, height + (0.1*strata)));
+	vec3 color = mix(mat.grass, mat.snow, smoothstep(0.55, 0.6, height + (0.3*strata)));
 	vec3 rocks = mix(mat.dirt, mat.stone, smoothstep(0.2, 0.3, height));
 	color = mix(color, rocks, smoothstep(0.4, 0.55, slope - (0.5*strata)));
 

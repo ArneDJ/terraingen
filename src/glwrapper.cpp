@@ -80,15 +80,6 @@ struct mesh gen_quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d)
 		b.x, b.y, b.z,
 	};
 
-	/*
-	const GLfloat positions[] = {
-		1.0, -1.0, 0.0,
-		-1.0, -1.0, 0.0,
-		-1.0, 1.0, 0.0,
-		1.0, 1.0, 0.0,
-	};
-	*/
-
 	const GLfloat texcoords[] = {
 		1.0, 1.0,
 		0.0, 1.0,
