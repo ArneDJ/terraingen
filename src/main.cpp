@@ -154,77 +154,6 @@ Skybox init_skybox(void)
 	return skybox;
 }
 
-GLuint create_3D_texture(void)
-{
-	const size_t texsize = 128;
-
-	unsigned char *image = new unsigned char[texsize*texsize*texsize];
-	perlin_3D_image(image, texsize);
-
-	GLuint texture;
-
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_3D, texture);
-
-	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
-	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-	glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, texsize, texsize, texsize, 0, GL_RED, GL_UNSIGNED_BYTE, image);
-
-	delete [] image;
-
-	return texture;
-}
-
-struct mesh create_slices(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, size_t slices_count, float offset)
-{
-	struct mesh slices = {
-		.VAO = 0, .VBO = 0, .EBO = 0,
-		.mode = GL_TRIANGLES,
-		.ecount = GLsizei(6*slices_count),
-		.indexed = true
-	};
-
-	// starts with the top slice and goes down to the bottom slice
-	std::vector<glm::vec3> positions;
-	for (int i = 0; i < slices_count; i++) {
-		float y = offset * i;
-		positions.push_back(glm::vec3(d.x, d.y - y, d.z));
-		positions.push_back(glm::vec3(c.x, c.y - y, c.z));
-		positions.push_back(glm::vec3(a.x, a.y - y, a.z));
-		positions.push_back(glm::vec3(b.x, b.y - y, b.z));
-	}
-
-	std::vector<GLushort> indices;
-	for (int i = 0; i < slices_count; i++) {
-		indices.push_back((i * 4) + 0);
-		indices.push_back((i * 4) + 1);
-		indices.push_back((i * 4) + 2);
-		indices.push_back((i * 4) + 0);
-		indices.push_back((i * 4) + 2);
-		indices.push_back((i * 4) + 3);
-	}
-
-	glGenVertexArrays(1, &slices.VAO);
-	glBindVertexArray(slices.VAO);
-
-	glGenBuffers(1, &slices.EBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, slices.EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort)*indices.size(), &indices[0], GL_STATIC_DRAW); 
-
-	glGenBuffers(1, &slices.VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, slices.VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3)*positions.size(), &positions[0], GL_STATIC_DRAW);
-
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-
-	return slices;
-}
-
 void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -251,7 +180,7 @@ void run_terraingen(SDL_Window *window)
 		terrain.sidelength,
 		terrain.amplitude,
 		128,
-		0.02f,
+		0.03f,
 		0.5f,
 	};
 

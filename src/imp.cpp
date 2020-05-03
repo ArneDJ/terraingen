@@ -107,16 +107,16 @@ struct rawimage gen_occlusmap(const struct rawimage *heightmap)
 	return occlusmap;
 }
 
-void perlin_3D_image(unsigned char *image, size_t sidelength)
+void perlin_3D_image(unsigned char *image, size_t sidelength, float frequency, float cloud_distance)
 {
 	FastNoise billow;
 	billow.SetNoiseType(FastNoise::SimplexFractal);
 	billow.SetFractalType(FastNoise::Billow);
-	billow.SetFrequency(0.03f);
+	billow.SetFrequency(frequency);
 	billow.SetFractalOctaves(6);
 	billow.SetFractalLacunarity(2.0f);
 
-	const float space = 0.5; // space between the clouds
+	const float space = cloud_distance; // space between the clouds
 
 	unsigned int index = 0;
 	for (int i = 0; i < sidelength; i++) {

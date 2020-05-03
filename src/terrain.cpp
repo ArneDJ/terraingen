@@ -64,7 +64,7 @@ static struct mesh create_slices(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec
 static GLuint create_cloud_texture(size_t texsize, float frequency, float cloud_distance)
 {
 	unsigned char *image = new unsigned char[texsize*texsize*texsize];
-	perlin_3D_image(image, texsize);
+	perlin_3D_image(image, texsize, frequency, cloud_distance);
 
 	GLuint texture;
 
