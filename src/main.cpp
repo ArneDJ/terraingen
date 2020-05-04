@@ -13,6 +13,10 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "external/imgui/imgui.h"
+#include "external/imgui/imgui_impl_sdl.h"
+#include "external/imgui/imgui_impl_opengl3.h"
+
 #include "imp.h"
 #include "dds.h"
 #include "glwrapper.h"
@@ -154,6 +158,29 @@ Skybox init_skybox(void)
 	return skybox;
 }
 
+static inline void start_imguiframe(SDL_Window *window)
+{
+	// Start the Dear ImGui frame
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplSDL2_NewFrame(window);
+	ImGui::NewFrame();
+}
+
+static void init_imgui(SDL_Window *window, SDL_GLContext glcontext)
+{
+	// Setup Dear ImGui context
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO &io = ImGui::GetIO(); (void)io;
+
+	// Setup Dear ImGui style
+	ImGui::StyleColorsDark();
+
+	// Setup Platform/Renderer bindings
+	ImGui_ImplSDL2_InitForOpenGL(window, glcontext);
+	ImGui_ImplOpenGL3_Init("#version 430");
+}
+
 void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -212,8 +239,8 @@ void run_terraingen(SDL_Window *window)
 	float start = 0.f;
  	float end = 0.f;
 	static float timer = 0.f;
-
-	long frames = 0;
+	unsigned long frames = 0;
+	unsigned int msperframe = 0;
 
 	SDL_Event event;
 	while (event.type != SDL_QUIT) {
@@ -293,9 +320,29 @@ void run_terraingen(SDL_Window *window)
 		undergrowth.uniform_mat4_array("shadowspace", shadowspace);
 		grass.display();
 
+		// debug UI
+		start_imguiframe(window);
+
+		ImGui::Begin("Debug");
+		ImGui::SetWindowSize(ImVec2(400, 200));
+		ImGui::Text("%d ms per frame", msperframe);
+		ImGui::Text("camera position: %.2f, %.2f, %.2f", cam.eye.x, cam.eye.y, cam.eye.z);
+
+		//if (ImGui::Button("Exit")) { running = false; }
+
+		ImGui::End();
+
+		// Render dear imgui into screen
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
 		SDL_GL_SwapWindow(window);
 		end = start;
 		frames++;
+		if (frames > 100) { 
+			msperframe = (unsigned int)(delta*1000); 
+			frames = 0; 
+		}
 	}
 }
 
@@ -327,6 +374,8 @@ int main(int argc, char *argv[])
 	glEnable(GL_DEPTH_TEST);
  	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	init_imgui(window, glcontext);
 
 	run_terraingen(window);
 
