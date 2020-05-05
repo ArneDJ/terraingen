@@ -500,7 +500,7 @@ void gltf::Model::update_animation(uint32_t index, float time)
 	animation_t &animation = animations[index];
 
 	bool updated = false;
-	for (auto& channel : animation.channels) {
+	for (auto &channel : animation.channels) {
 		gltf::animsampler_t &sampler = animation.samplers[channel.samplerindex];
 		if (sampler.inputs.size() > sampler.outputs.size()) { continue; }
 
@@ -558,7 +558,7 @@ void gltf::Model::display(Shader *shader, glm::vec3 translation, float scale)
 			glm::mat4 T = glm::translate(glm::mat4(1.f), translation);
 			shader->uniform_mat4("model", T * S * m);
 
-			shader->uniform_array_mat4("u_joint_matrix", node->mesh->uniformblock.jointcount, node->mesh->uniformblock.jointMatrix); 
+			//shader->uniform_array_mat4("u_joint_matrix", node->mesh->uniformblock.jointcount, node->mesh->uniformblock.jointMatrix); 
 			for (const gltf::primitive_t *prim : node->mesh->primitives) {
 				shader->uniform_vec3("basedcolor", prim->material.basecolor);
 				glActiveTexture(GL_TEXTURE0);
@@ -584,3 +584,24 @@ void gltf::Model::display(Shader *shader, glm::vec3 translation, float scale)
 	}
 }
 
+unsigned short gltf::Model::get_joint_count(void)
+{
+	for (gltf::node_t *node : linearNodes) {
+		if (node->mesh) {
+			return node->mesh->uniformblock.jointcount;
+		}
+	}
+
+	return 0;
+}
+
+glm::mat4* gltf::Model::get_joint_matrices(void)
+{
+	for (gltf::node_t *node : linearNodes) {
+		if (node->mesh) {
+			return node->mesh->uniformblock.jointMatrix;
+		}
+	}
+
+	return NULL;
+}

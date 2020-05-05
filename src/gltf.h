@@ -177,6 +177,8 @@ public:
 	struct bufferobject bufferbind;
 	bool instanced = false;
 	size_t instance_count = 0;
+	unsigned short get_joint_count(void);
+	glm::mat4* get_joint_matrices(void);
 private:
 	std::vector<node_t*> nodes;
 	std::vector<node_t*> linearNodes;

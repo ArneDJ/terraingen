@@ -222,6 +222,20 @@ void instance_tbo(void)
 	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, model_matrix_buffer);
 }
 
+GLuint joint_matrix_tbo;
+GLuint joint_matrix_buffer;
+
+void instance_joint_tbo(uint16_t joint_count)
+{
+	glGenTextures(1, &joint_matrix_tbo);
+	glBindTexture(GL_TEXTURE_BUFFER, joint_matrix_tbo);
+
+	glGenBuffers(1, &joint_matrix_buffer);
+	glBindBuffer(GL_TEXTURE_BUFFER, joint_matrix_buffer);
+	glBufferData(GL_TEXTURE_BUFFER, joint_count * INSTANCE_COUNT * sizeof(glm::mat4), NULL, GL_DYNAMIC_DRAW);
+	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, joint_matrix_buffer);
+}
+
 void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -264,12 +278,15 @@ void run_terraingen(SDL_Window *window)
 	glm::vec3 translation = glm::vec3(1100.f, 38.f, 980.f);
 	gltf::Model model = { "media/models/dragon.glb" };
 	gltf::Model duck = { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
+	//gltf::Model character = { "media/models/samples/khronos/Fox/glTF-Binary/Fox.glb" };
+	//gltf::Model character = { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
 	gltf::Model character = { "media/models/character.glb" };
+	const uint16_t joint_count = character.get_joint_count();
+	glm::mat4 *joint_matrices = new glm::mat4[joint_count * INSTANCE_COUNT];
 	character.instanced = true;
 	character.instance_count = INSTANCE_COUNT;
 	instance_tbo();
-	//gltf::Model character { "media/models/samples/khronos/Fox/glTF-Binary/Fox.glb" };
-	//gltf::Model character { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
+	instance_joint_tbo(joint_count);
 
 	Camera cam = { 
 		glm::vec3(1024.f, 128.f, 1024.f),
@@ -298,6 +315,17 @@ void run_terraingen(SDL_Window *window)
 			if (timer > character.animations[item_current].end) { timer -= character.animations[item_current].end; }
 			character.update_animation(item_current, timer);
 		}
+
+		glm::mat4 *joint_matrix = character.get_joint_matrices();
+		int windex = 0;
+		for (int i = 0; i < INSTANCE_COUNT; i++) {
+			glm::mat4 *matrix = character.get_joint_matrices();
+			for (int j = 0; j < joint_count; j++) {
+				joint_matrices[windex++] = matrix[j];
+			}
+		}
+		glBindBuffer(GL_TEXTURE_BUFFER, joint_matrix_buffer);
+		glBufferData(GL_TEXTURE_BUFFER, joint_count*INSTANCE_COUNT*sizeof(glm::mat4), joint_matrices, GL_DYNAMIC_DRAW);
 
 		// Set model matrices for each instance
 		glm::mat4 matrices[INSTANCE_COUNT];
@@ -368,6 +396,8 @@ void run_terraingen(SDL_Window *window)
 		//character.display(&base_program, glm::vec3(1100.f, 38.f, 980.f), 1.f);
 
 		activate_texture(GL_TEXTURE5, GL_TEXTURE_BUFFER, model_matrix_tbo);
+		activate_texture(GL_TEXTURE6, GL_TEXTURE_BUFFER, joint_matrix_tbo);
+		skinned_program.uniform_int("joint_count", joint_count); 
 		character.display(&skinned_program, translation, 1.f);
 
 		sky_program.bind();
@@ -410,6 +440,8 @@ void run_terraingen(SDL_Window *window)
 			frames = 0; 
 		}
 	}
+
+	delete [] joint_matrices;
 }
 
 int main(int argc, char *argv[])

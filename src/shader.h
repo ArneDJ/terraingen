@@ -13,6 +13,11 @@ public:
 		glUseProgram(program);
 		glUniform1i(glGetUniformLocation(program, name), boolean);
 	}
+	void uniform_int(const GLchar *name, int v0) const 
+	{
+		glUseProgram(program);
+		glUniform1i(glGetUniformLocation(program, name), v0);
+	}
 	void uniform_float(const GLchar *name, GLfloat scalar) const
 	{
 		glUseProgram(program);

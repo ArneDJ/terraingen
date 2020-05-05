@@ -7,20 +7,31 @@ layout(location = 1) in vec3 normal;
 layout(location = 2) in vec2 texcoord;
 layout(location = 3) in ivec4 joints;
 layout(location = 4) in vec4 weights;
-layout(location = 5) in mat4 instance_model;
 
 layout(binding = 5) uniform samplerBuffer model_matrix_tbo;
+layout(binding = 6) uniform samplerBuffer joint_matrix_tbo;
 
 uniform mat4 VIEW_PROJECT;
 uniform mat4 model;
-uniform mat4 u_joint_matrix[MAX_JOINT_MATRICES];
-uniform bool instanced;
+uniform int joint_count;
 
 out VERTEX {
 	vec3 worldpos;
 	vec3 normal;
 	vec2 texcoord;
 } vertex;
+
+mat4 fetch_joint_matrix(int joint)
+{
+	int base_index = gl_InstanceID * 4 * joint_count + (4 * joint);
+
+	vec4 col1 = texelFetch(joint_matrix_tbo, base_index);
+	vec4 col2 = texelFetch(joint_matrix_tbo, base_index + 1);
+	vec4 col3 = texelFetch(joint_matrix_tbo, base_index + 2);
+	vec4 col4 = texelFetch(joint_matrix_tbo, base_index + 3);
+
+	return mat4(col1, col2, col3, col4);
+}
 
 void main(void)
 {
@@ -35,18 +46,19 @@ void main(void)
 	// now assemble the four columns into a matrix
 	mat4 final_model = mat4(col1, col2, col3, col4);
 
-	//mat4 final_model = model;
+	//mat4 skin_matrix = fetch_joint_matrix(1);
+	mat4 skin_matrix = 
+	weights.x * fetch_joint_matrix(int(joints.x)) +
+	weights.y * fetch_joint_matrix(int(joints.y)) +
+	weights.z * fetch_joint_matrix(int(joints.z)) +
+	weights.w * fetch_joint_matrix(int(joints.w));
 	/*
-	if (instanced == true) {
-		final_model = instance_model;
-	}
-	*/
-
 	mat4 skin_matrix =
 	weights.x * u_joint_matrix[int(joints.x)] +
 	weights.y * u_joint_matrix[int(joints.y)] +
 	weights.z * u_joint_matrix[int(joints.z)] +
 	weights.w * u_joint_matrix[int(joints.w)];
+	*/
 
 	vec4 pos = final_model * skin_matrix * vec4(position, 1.0);
 	vertex.normal = normalize(mat3(transpose(inverse(final_model * skin_matrix))) * normal);
