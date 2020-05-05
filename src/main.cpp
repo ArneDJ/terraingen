@@ -213,19 +213,13 @@ void run_terraingen(SDL_Window *window)
 	Shader base_program = base_shader();
 	Shader grass_program = grass_shader();
 	Shader terrain_program = terrain_shader();
-	Shader sky = skybox_shader();
-	Shader depthpass = shadow_shader();
-	Shader cloud = cloud_shader();
-	Shader compute = compute_shader();
-	Shader particles = particle_shader();
+	Shader sky_program = skybox_shader();
+	Shader depth_program = shadow_shader();
+	Shader cloud_program = cloud_shader();
 
 	Skybox skybox = init_skybox();
 
-	Shadow shadow = {
-		SHADOW_TEXTURE_SIZE,
-	};
-
-	Particles part;
+	Shadow shadow = { SHADOW_TEXTURE_SIZE, };
 
 	Terrain terrain = { 64, 32.f, 256.f };
 	terrain.genheightmap(1024, 1.f);
@@ -288,30 +282,27 @@ void run_terraingen(SDL_Window *window)
 		if (frames % 4 == 0) {
 			shadow.update(&cam, glm::vec3(0.5, 0.5, 0.5));
 			shadow.enable();
-			depthpass.bind();
+			depth_program.bind();
 			for (int i = 0; i < shadow.CASCADE_COUNT; i++) {
 				shadow.binddepth(i);
-				depthpass.uniform_mat4("VIEW_PROJECT", shadow.shadowspace[i]);
-				depthpass.uniform_bool("instanced", false);
-				model.display(&depthpass, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
-				duck.display(&depthpass, glm::vec3(970.f, 50.f, 970.f), 5.f);
-				//character.display(&depthpass, glm::vec3(1100.f, 38.f, 980.f), 1.f);
-				character.display(&depthpass, translation, 1.f);
+				depth_program.uniform_mat4("VIEW_PROJECT", shadow.shadowspace[i]);
+				depth_program.uniform_bool("instanced", false);
+				model.display(&depth_program, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
+				duck.display(&depth_program, glm::vec3(970.f, 50.f, 970.f), 5.f);
+				//character.display(&depth_program, glm::vec3(1100.f, 38.f, 980.f), 1.f);
+				character.display(&depth_program, translation, 1.f);
 			}
 			shadow.disable();
 		}
-
-		part.update_particles(&compute, 100.f*start, 100.f*delta);
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 
 		const glm::mat4 VIEW_PROJECT = cam.project * cam.view;
-		sky.uniform_mat4("view", cam.view);
+		sky_program.uniform_mat4("view", cam.view);
 		terrain_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		grass_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
-		cloud.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
-		particles.uniform_mat4("MVP", VIEW_PROJECT * glm::translate(glm::mat4(1.0), glm::vec3(1029.f, 69.f, 992.f)));
+		cloud_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		base_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		base_program.uniform_vec3("camerapos", cam.eye);
 		base_program.uniform_vec3("viewdir", cam.center);
@@ -336,11 +327,11 @@ void run_terraingen(SDL_Window *window)
 		//character.display(&base_program, glm::vec3(1100.f, 38.f, 980.f), 1.f);
 		character.display(&base_program, translation, 1.f);
 
-		sky.bind();
+		sky_program.bind();
 		skybox.display();
 
-		cloud.bind();
-		cloud.uniform_float("time", start);
+		cloud_program.bind();
+		cloud_program.uniform_float("time", start);
 		clouds.display();
 
 		grass_program.bind();
@@ -351,8 +342,6 @@ void run_terraingen(SDL_Window *window)
 		grass_program.uniform_vec4("split", shadow.splitdepth);
 		grass_program.uniform_mat4_array("shadowspace", shadowspace);
 		grass.display();
-
-		part.display(&particles);
 
 		// debug UI
 		start_imguiframe(window);

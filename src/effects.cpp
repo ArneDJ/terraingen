@@ -1,4 +1,6 @@
+#include <iostream>
 #include <vector>
+#include <random>
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <glm/vec3.hpp>
@@ -11,32 +13,11 @@
 #include "shader.h"
 #include "effects.h"
 
-static inline float random_float()
-{
-	float res;
-	unsigned int tmp;
-	static unsigned int seed = 0xFFFF0C59;
-
-	seed *= 16807;
-
-	tmp = seed ^ (seed >> 4) ^ (seed << 15);
-
-	*((unsigned int *)&res) = (tmp >> 9) | 0x3F800000;
-
-	return (res - 1.0f);
-}
-
-static glm::vec3 random_vector(float minmag = 0.0f, float maxmag = 1.0f)
-{
-	glm::vec3 randomvec = glm::vec3(random_float() * 2.0f - 1.0f, random_float() * 2.0f - 1.0f, random_float() * 2.0f - 1.0f);
-	randomvec = glm::normalize(randomvec);
-	randomvec *= (random_float() * (maxmag - minmag) + minmag);
-
-	return randomvec;
-}
-
 void Particles::init_buffers(void)
 {
+	std::random_device rd;
+	std::mt19937 gen(rd());
+
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
 
@@ -47,8 +28,11 @@ void Particles::init_buffers(void)
 
 	glm::vec4 *positions = (glm::vec4 *)glMapBufferRange(GL_ARRAY_BUFFER, 0, PARTICLE_COUNT * sizeof(glm::vec4), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
 
+	std::uniform_real_distribution<> pos(-10.f, 10.f);
+	std::uniform_real_distribution<> life(0.f, 1.f);
+
 	for (int i = 0; i < PARTICLE_COUNT; i++) {
-		positions[i] = glm::vec4(random_vector(-10.0f, 10.0f), random_float());
+		positions[i] = glm::vec4(glm::vec3(pos(gen), pos(gen), pos(gen)), life(gen));
 	}
 
 	glUnmapBuffer(GL_ARRAY_BUFFER);
@@ -56,22 +40,21 @@ void Particles::init_buffers(void)
 	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, NULL);
 	glEnableVertexAttribArray(0);
 
-
 	// init velocity buffer
-	//glGenBuffers(1, &velocity_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, velocity_buffer);
 	glBufferData(GL_ARRAY_BUFFER, PARTICLE_COUNT * sizeof(glm::vec4), NULL, GL_DYNAMIC_COPY);
 
 	glm::vec4 *velocities = (glm::vec4 *)glMapBufferRange(GL_ARRAY_BUFFER, 0, PARTICLE_COUNT * sizeof(glm::vec4), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
 
+	std::uniform_real_distribution<> vel(-0.1f, 0.1f);
+
 	for (int i = 0; i < PARTICLE_COUNT; i++) {
-		velocities[i] = glm::vec4(random_vector(-0.1f, 0.1f), 0.0f);
+		velocities[i] = glm::vec4(glm::vec3(vel(gen), vel(gen), vel(gen)), 0.0f);
 	}
 
 	glUnmapBuffer(GL_ARRAY_BUFFER);
 
 	glGenTextures(2, tbos);
-	//glGenTextures(1, &position_tbo);
 	glBindTexture(GL_TEXTURE_BUFFER, position_tbo);
 	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, position_buffer);
 
@@ -85,7 +68,7 @@ void Particles::init_buffers(void)
 	glBufferData(GL_UNIFORM_BUFFER, 32 * sizeof(glm::vec4), NULL, GL_STATIC_DRAW);
 
 	for (int i = 0; i < MAX_ATTRACTORS; i++) {
-		attractor_masses[i] = 0.5f + random_float() * 0.5f;
+		attractor_masses[i] = 0.5f + life(gen) * 0.5f;
 	}
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, attractor_buffer);
