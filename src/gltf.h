@@ -174,9 +174,10 @@ public:
 	void update_animation(uint32_t index, float time);
 	void display(Shader *shader, glm::vec3 translation, float scale);
 	std::vector<animation_t> animations;
-private:
-//	GLuint VAO = 0;
 	struct bufferobject bufferbind;
+	bool instanced = false;
+	size_t instance_count = 0;
+private:
 	std::vector<node_t*> nodes;
 	std::vector<node_t*> linearNodes;
 	std::vector<skin_t*> skins;

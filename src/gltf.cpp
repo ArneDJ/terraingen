@@ -568,11 +568,16 @@ void gltf::Model::display(Shader *shader, glm::vec3 translation, float scale)
 				glActiveTexture(GL_TEXTURE2);
 				glBindTexture(GL_TEXTURE_2D, prim->material.normalmap);
 
-				if (prim->indexed == false) {
-					glDrawArrays(GL_TRIANGLES, prim->firstvertex, prim->vertexcount);
+				if (instanced == true) {
+					glDrawElementsInstancedBaseVertex(GL_TRIANGLES, prim->indexcount, GL_UNSIGNED_INT, (GLvoid *)((prim->firstindex)*sizeof(GL_UNSIGNED_INT)), instance_count, prim->firstvertex);
+
 				} else {
-					glDrawElementsBaseVertex(GL_TRIANGLES, prim->indexcount, GL_UNSIGNED_INT, (GLvoid *)((prim->firstindex)*sizeof(GL_UNSIGNED_INT)), prim->firstvertex);
-				/* TODO use primitive restart */
+					if (prim->indexed == false) {
+						glDrawArrays(GL_TRIANGLES, prim->firstvertex, prim->vertexcount);
+					} else {
+						glDrawElementsBaseVertex(GL_TRIANGLES, prim->indexcount, GL_UNSIGNED_INT, (GLvoid *)((prim->firstindex)*sizeof(GL_UNSIGNED_INT)), prim->firstvertex);
+					/* TODO use primitive restart */
+					}
 				}
 			}
 		}

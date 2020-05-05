@@ -37,11 +37,13 @@
 #define FOG_DENSITY 0.015f
 #define SHADOW_TEXTURE_SIZE 2048
 
-Shader base_shader(void)
+#define INSTANCE_COUNT 10000
+
+Shader base_shader(const char *vertpath, const char *fragpath)
 {
 	struct shaderinfo pipeline[] = {
-		{GL_VERTEX_SHADER, "shaders/base.vert"},
-		{GL_FRAGMENT_SHADER, "shaders/base.frag"},
+		{GL_VERTEX_SHADER, vertpath},
+		{GL_FRAGMENT_SHADER, fragpath},
 		{GL_NONE, NULL}
 	};
 
@@ -206,11 +208,26 @@ static void init_imgui(SDL_Window *window, SDL_GLContext glcontext)
 	ImGui_ImplOpenGL3_Init("#version 430");
 }
 
+GLuint model_matrix_tbo;
+GLuint model_matrix_buffer;
+
+void instance_tbo(void)
+{
+	glGenTextures(1, &model_matrix_tbo);
+	glBindTexture(GL_TEXTURE_BUFFER, model_matrix_tbo);
+
+	glGenBuffers(1, &model_matrix_buffer);
+	glBindBuffer(GL_TEXTURE_BUFFER, model_matrix_buffer);
+	glBufferData(GL_TEXTURE_BUFFER, INSTANCE_COUNT * sizeof(glm::mat4), NULL, GL_DYNAMIC_DRAW);
+	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, model_matrix_buffer);
+}
+
 void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 
-	Shader base_program = base_shader();
+	Shader base_program = base_shader("shaders/base.vert", "shaders/base.frag");
+	Shader skinned_program = base_shader("shaders/skinned.vert", "shaders/skinned.frag");
 	Shader grass_program = grass_shader();
 	Shader terrain_program = terrain_shader();
 	Shader sky_program = skybox_shader();
@@ -248,6 +265,9 @@ void run_terraingen(SDL_Window *window)
 	gltf::Model model = { "media/models/dragon.glb" };
 	gltf::Model duck = { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
 	gltf::Model character = { "media/models/character.glb" };
+	character.instanced = true;
+	character.instance_count = INSTANCE_COUNT;
+	instance_tbo();
 	//gltf::Model character { "media/models/samples/khronos/Fox/glTF-Binary/Fox.glb" };
 	//gltf::Model character { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
 
@@ -279,6 +299,25 @@ void run_terraingen(SDL_Window *window)
 			character.update_animation(item_current, timer);
 		}
 
+		// Set model matrices for each instance
+		glm::mat4 matrices[INSTANCE_COUNT];
+		int index = 0;
+		for (int i = 0; i < 100; i++) {
+				float a = 50.f * float(i) / 4.f;
+				float b = 50.f * float(i) / 5.f;
+				for (int j = 0; j < 100; j++) {
+					float c = 50.f * float(j) / 6.f;
+					glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1000.f+a, 128.f+20*sin(start+b), 1000.f+c));
+					//glm::mat4 R = glm::rotate(start, glm::vec3(0.0, 1.0, 0.0));
+					glm::mat4 R = glm::rotate(start, glm::vec3(1.0, 0.0, 0.0));
+					glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.05f));
+					matrices[index++] = T * R;
+			}
+		}
+		// Bind the weight VBO and change its data
+		glBindBuffer(GL_TEXTURE_BUFFER, model_matrix_buffer);
+		glBufferData(GL_TEXTURE_BUFFER, INSTANCE_COUNT*sizeof(glm::mat4), matrices, GL_DYNAMIC_DRAW);
+
 		if (frames % 4 == 0) {
 			shadow.update(&cam, glm::vec3(0.5, 0.5, 0.5));
 			shadow.enable();
@@ -290,7 +329,6 @@ void run_terraingen(SDL_Window *window)
 				model.display(&depth_program, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
 				duck.display(&depth_program, glm::vec3(970.f, 50.f, 970.f), 5.f);
 				//character.display(&depth_program, glm::vec3(1100.f, 38.f, 980.f), 1.f);
-				character.display(&depth_program, translation, 1.f);
 			}
 			shadow.disable();
 		}
@@ -303,6 +341,9 @@ void run_terraingen(SDL_Window *window)
 		terrain_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		grass_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		cloud_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
+		skinned_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
+		skinned_program.uniform_vec3("camerapos", cam.eye);
+		skinned_program.uniform_vec3("viewdir", cam.center);
 		base_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		base_program.uniform_vec3("camerapos", cam.eye);
 		base_program.uniform_vec3("viewdir", cam.center);
@@ -325,7 +366,9 @@ void run_terraingen(SDL_Window *window)
 		model.display(&base_program, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
 		duck.display(&base_program, glm::vec3(970.f, 50.f, 970.f), 5.f);
 		//character.display(&base_program, glm::vec3(1100.f, 38.f, 980.f), 1.f);
-		character.display(&base_program, translation, 1.f);
+
+		activate_texture(GL_TEXTURE5, GL_TEXTURE_BUFFER, model_matrix_tbo);
+		character.display(&skinned_program, translation, 1.f);
 
 		sky_program.bind();
 		skybox.display();
