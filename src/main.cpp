@@ -281,12 +281,42 @@ void run_terraingen(SDL_Window *window)
 	//gltf::Model character = { "media/models/samples/khronos/Fox/glTF-Binary/Fox.glb" };
 	//gltf::Model character = { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
 	gltf::Model character = { "media/models/character.glb" };
+	static int item_current = 0;
 	const uint16_t joint_count = character.get_joint_count();
 	glm::mat4 *joint_matrices = new glm::mat4[joint_count * INSTANCE_COUNT];
 	character.instanced = true;
 	character.instance_count = INSTANCE_COUNT;
 	instance_tbo();
 	instance_joint_tbo(joint_count);
+	
+	// pre calculate all the joint transforms for each animation per frame
+	float dt = 0.03f;
+	float t = 0.f;
+	size_t nframes = 0;
+	while (t < character.animations[item_current].end) {
+		t += dt;
+		nframes++;
+	}
+	glm::mat4 *animation_joints = new glm::mat4[nframes * joint_count];
+	t = 0.f;
+	int a_index = 0;
+	for (int i = 0; i < nframes; i++) {
+		character.update_animation(item_current, t);
+		glm::mat4 *matrix = character.get_joint_matrices();
+		for (int j = 0; j < joint_count; j++) {
+			animation_joints[a_index++] = matrix[j];
+		}
+
+		t += dt;
+	}
+	// give each instance a random animation start frame
+	unsigned int instance_frame[INSTANCE_COUNT];
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_int_distribution<> dist(0, nframes-1);
+	for (int i = 0; i < INSTANCE_COUNT; i++) {
+		instance_frame[i] = dist(gen);
+	}
 
 	Camera cam = { 
 		glm::vec3(1024.f, 128.f, 1024.f),
@@ -299,6 +329,7 @@ void run_terraingen(SDL_Window *window)
 	float start = 0.f;
  	float end = 0.f;
 	static float timer = 0.f;
+	static int joint_index = 0;
 	unsigned long frames = 0;
 	unsigned int msperframe = 0;
 
@@ -309,19 +340,30 @@ void run_terraingen(SDL_Window *window)
 		const float delta = start - end;
 		cam.update(delta);
 
-		static int item_current = 0;
+		/*
+		// this takes too much CPU time, it's better to sample each animation per frame and store them in a buffer before the render loop
 		timer += delta;
-		if (character.animations.empty() == false) {
-			if (timer > character.animations[item_current].end) { timer -= character.animations[item_current].end; }
-			character.update_animation(item_current, timer);
+		if (timer > character.animations[item_current].end) { 
+			timer -= character.animations[item_current].end; 
+		}
+		character.update_animation(item_current, timer);
+		*/
+		joint_index++;
+		if (joint_index > nframes-1) {
+			joint_index = 0;
 		}
 
 		glm::mat4 *joint_matrix = character.get_joint_matrices();
 		int windex = 0;
 		for (int i = 0; i < INSTANCE_COUNT; i++) {
-			glm::mat4 *matrix = character.get_joint_matrices();
+			instance_frame[i]++;
+			if (instance_frame[i] > nframes-1) {
+				instance_frame[i] = 0;
+			}
+			//glm::mat4 *matrix = character.get_joint_matrices();
 			for (int j = 0; j < joint_count; j++) {
-				joint_matrices[windex++] = matrix[j];
+				//joint_matrices[windex++] = matrix[j];
+				joint_matrices[windex++] = animation_joints[instance_frame[i]*joint_count+j];
 			}
 		}
 		glBindBuffer(GL_TEXTURE_BUFFER, joint_matrix_buffer);
@@ -331,13 +373,12 @@ void run_terraingen(SDL_Window *window)
 		glm::mat4 matrices[INSTANCE_COUNT];
 		int index = 0;
 		for (int i = 0; i < 100; i++) {
-				float a = 50.f * float(i) / 4.f;
-				float b = 50.f * float(i) / 5.f;
+				float a = 25.f * float(i) / 4.f;
+				float b = 5.f * float(i);
 				for (int j = 0; j < 100; j++) {
-					float c = 50.f * float(j) / 6.f;
-					glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1000.f+a, 128.f+20*sin(start+b), 1000.f+c));
-					//glm::mat4 R = glm::rotate(start, glm::vec3(0.0, 1.0, 0.0));
-					glm::mat4 R = glm::rotate(start, glm::vec3(1.0, 0.0, 0.0));
+					float c = 25.f * float(j) / 6.f;
+					glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1000.f+a, 128.f+2.f*sin(start+b), 1000.f+c));
+					glm::mat4 R = glm::rotate(1.57f, glm::vec3(1.0, 0.0, 0.0));
 					glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.05f));
 					matrices[index++] = T * R;
 			}
@@ -442,6 +483,7 @@ void run_terraingen(SDL_Window *window)
 	}
 
 	delete [] joint_matrices;
+	delete [] animation_joints;
 }
 
 int main(int argc, char *argv[])
