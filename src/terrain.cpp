@@ -165,7 +165,7 @@ void Terrain::genheightmap(size_t imageres, float freq)
 		.height = imageres
 	};
 
-	terrain_image(image.data, imageres, 404, freq);
+	terrain_image(image.data, imageres, 333, freq);
 
 	heightmap = bind_texture(&image, GL_R8, GL_RED, GL_UNSIGNED_BYTE);
 	heightimage = image;

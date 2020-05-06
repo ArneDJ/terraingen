@@ -133,8 +133,6 @@ void perlin_3D_image(unsigned char *image, size_t sidelength, float frequency, f
 
 void terrain_image(unsigned char *image, size_t sidelength, long seed, float freq)
 {
-	seed = 404;
-
 	// detail
 	FastNoise billow;
 	billow.SetSeed(seed);

@@ -88,7 +88,6 @@ void main(void)
 	const vec3 viewspace = vec3(distance(fragment.position.x, camerapos.x), distance(fragment.position.y, camerapos.y), distance(fragment.position.z, camerapos.z));
 
 	color = vec4(0.34, 0.5, 0.09, 1.0);
-	//color = texture(colormap, fragment.texcoord);
 
 /*
 	float dist = distance(camerapos, fragment.position);
@@ -109,7 +108,7 @@ void main(void)
 	normal = normalize((0.5 * detail) + normal);
 
 	float diffuse = max(0.0, dot(normal, lightdirection));
-	float shadow = shadow_coef();
+	float shadow = 1.0;
 
 	vec3 scatteredlight = ambient + lightcolor * diffuse * shadow;
 	color.rgb = min(color.rgb * scatteredlight, vec3(1.0));

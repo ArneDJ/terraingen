@@ -23,8 +23,6 @@
 #include "shader.h"
 #include "camera.h"
 #include "terrain.h"
-#include "gltf.h"
-#include "shadow.h"
 #include "effects.h"
 
 #define WINDOW_WIDTH 1920
@@ -35,29 +33,6 @@
 
 #define GRASS_DENSITY 800000
 #define FOG_DENSITY 0.015f
-#define SHADOW_TEXTURE_SIZE 2048
-
-#define INSTANCE_COUNT 10000
-
-Shader base_shader(const char *vertpath, const char *fragpath)
-{
-	struct shaderinfo pipeline[] = {
-		{GL_VERTEX_SHADER, vertpath},
-		{GL_FRAGMENT_SHADER, fragpath},
-		{GL_NONE, NULL}
-	};
-
-	Shader shader(pipeline);
-
-	shader.bind();
-
-	glm::mat4 model = glm::mat4(1.f);
-	shader.uniform_mat4("model", model);
-	shader.uniform_vec3("fogcolor", glm::vec3(0.46, 0.7, 0.99));
-	shader.uniform_float("fogfactor", FOG_DENSITY);
-
-	return shader;
-}
 
 Shader grass_shader(void)
 {
@@ -143,19 +118,6 @@ Shader skybox_shader(void)
 	return shader;
 }
 
-Shader shadow_shader(void)
-{
-	struct shaderinfo pipeline[] = {
-	{GL_VERTEX_SHADER, "shaders/depthmap.vert"},
-	{GL_FRAGMENT_SHADER, "shaders/depthmap.frag"},
-	{GL_NONE, NULL}
-	};
-
-	Shader shader(pipeline);
-
-	return shader;
-}
-
 Shader compute_shader(void)
 {
 	struct shaderinfo pipeline[] = {
@@ -212,17 +174,12 @@ void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 
-	Shader base_program = base_shader("shaders/base.vert", "shaders/base.frag");
-	Shader skinned_program = base_shader("shaders/skinned.vert", "shaders/skinned.frag");
 	Shader grass_program = grass_shader();
 	Shader terrain_program = terrain_shader();
 	Shader sky_program = skybox_shader();
-	Shader depth_program = shadow_shader();
 	Shader cloud_program = cloud_shader();
 
 	Skybox skybox = init_skybox();
-
-	Shadow shadow = { SHADOW_TEXTURE_SIZE, };
 
 	Terrain terrain = { 64, 32.f, 256.f };
 	terrain.genheightmap(1024, 1.f);
@@ -247,53 +204,6 @@ void run_terraingen(SDL_Window *window)
 		load_DDS_texture("media/textures/distortion.dds"),
 	};
 
-	glm::vec3 translation = glm::vec3(1100.f, 38.f, 980.f);
-	gltf::Model model = { "media/models/dragon.glb" };
-	gltf::Model duck = { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
-	//gltf::Model character = { "media/models/samples/khronos/Fox/glTF-Binary/Fox.glb" };
-	//gltf::Model character = { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
-	gltf::Model character = { "media/models/trooper.glb" };
-	//gltf::Model character = { "media/models/samples/khronos/RiggedSimple/glTF-Binary/RiggedSimple.glb" };
-	static int item_current = 0;
-	const uint16_t joint_count = character.get_joint_count();
-	glm::mat4 *joint_matrices = new glm::mat4[joint_count * INSTANCE_COUNT];
-	character.instanced = true;
-	character.instance_count = INSTANCE_COUNT;
-	//instance_tbo();
-	struct TBO instance_tbo = create_TBO(INSTANCE_COUNT * sizeof(glm::mat4), GL_RGBA32F);
-	//instance_joint_tbo(joint_count);
-	struct TBO joint_tbo = create_TBO(joint_count * INSTANCE_COUNT * sizeof(glm::mat4), GL_RGBA32F);
-	
-	// pre calculate all the joint transforms for each animation per frame
-	float dt = 0.05f;
-	float t = 0.f;
-	size_t nframes = 0;
-	const float end_time = character.animations[item_current].end;
-	while (t < end_time) {
-		t += dt;
-		nframes++;
-	}
-	glm::mat4 *animation_joints = new glm::mat4[nframes * joint_count];
-	t = 0.f;
-	int a_index = 0;
-	for (int i = 0; i < nframes; i++) {
-		character.update_animation(item_current, t);
-		glm::mat4 *matrix = character.get_joint_matrices();
-		for (int j = 0; j < joint_count; j++) {
-			animation_joints[a_index++] = matrix[j];
-		}
-
-		t += dt;
-	}
-	// give each instance a random animation start frame
-	unsigned int instance_frame[INSTANCE_COUNT];
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_int_distribution<> dist(0, nframes);
-	for (int i = 0; i < INSTANCE_COUNT; i++) {
-		instance_frame[i] = dist(gen);
-	}
-
 	Camera cam = { 
 		glm::vec3(1024.f, 128.f, 1024.f),
 		FOV,
@@ -315,53 +225,6 @@ void run_terraingen(SDL_Window *window)
 		const float delta = start - end;
 		cam.update(delta);
 
-		glm::mat4 *joint_matrix = character.get_joint_matrices();
-		int windex = 0;
-		for (int i = 0; i < INSTANCE_COUNT; i++) {
-			instance_frame[i]++;
-			if (instance_frame[i] > nframes-1) {
-				instance_frame[i] = 0;
-			}
-			for (int j = 0; j < joint_count; j++) {
-				joint_matrices[windex++] = animation_joints[instance_frame[i]*joint_count+j];
-			}
-		}
-		glBindBuffer(GL_TEXTURE_BUFFER, joint_tbo.buffer);
-		glBufferData(GL_TEXTURE_BUFFER, joint_count*INSTANCE_COUNT*sizeof(glm::mat4), joint_matrices, GL_DYNAMIC_DRAW);
-
-		// Set model matrices for each instance
-		glm::mat4 matrices[INSTANCE_COUNT];
-		int index = 0;
-		for (int i = 0; i < 100; i++) {
-				float a = 10.f * float(i) / 4.f;
-				float b = 5.f * float(i);
-				for (int j = 0; j < 100; j++) {
-					float c = 10.f * float(j) / 6.f;
-					glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1000.f+a, 128.f+2.f*sin(start+b), 1000.f+c));
-					glm::mat4 R = glm::rotate(1.57f, glm::vec3(1.0, 0.0, 0.0));
-					glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.05f));
-					matrices[index++] = T * R;
-			}
-		}
-		// Bind the weight VBO and change its data
-		glBindBuffer(GL_TEXTURE_BUFFER, instance_tbo.buffer);
-		glBufferData(GL_TEXTURE_BUFFER, INSTANCE_COUNT*sizeof(glm::mat4), matrices, GL_DYNAMIC_DRAW);
-
-		if (frames % 4 == 0) {
-			shadow.update(&cam, glm::vec3(0.5, 0.5, 0.5));
-			shadow.enable();
-			depth_program.bind();
-			for (int i = 0; i < shadow.CASCADE_COUNT; i++) {
-				shadow.binddepth(i);
-				depth_program.uniform_mat4("VIEW_PROJECT", shadow.shadowspace[i]);
-				depth_program.uniform_bool("instanced", false);
-				model.display(&depth_program, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
-				duck.display(&depth_program, glm::vec3(970.f, 50.f, 970.f), 5.f);
-				//character.display(&depth_program, glm::vec3(1100.f, 38.f, 980.f), 1.f);
-			}
-			shadow.disable();
-		}
-
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 
@@ -370,36 +233,12 @@ void run_terraingen(SDL_Window *window)
 		terrain_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		grass_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
 		cloud_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
-		skinned_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
-		skinned_program.uniform_vec3("camerapos", cam.eye);
-		skinned_program.uniform_vec3("viewdir", cam.center);
-		base_program.uniform_mat4("VIEW_PROJECT", VIEW_PROJECT);
-		base_program.uniform_vec3("camerapos", cam.eye);
-		base_program.uniform_vec3("viewdir", cam.center);
 
 		terrain_program.bind();
 		terrain_program.uniform_float("amplitude", terrain.amplitude);
 		terrain_program.uniform_float("mapscale", 1.f / terrain.sidelength);
 		terrain_program.uniform_vec3("camerapos", cam.eye);
-		terrain_program.uniform_vec4("split", shadow.splitdepth);
-		std::vector<glm::mat4> shadowspace {
-			shadow.scalebias * shadow.shadowspace[0],
-			shadow.scalebias * shadow.shadowspace[1],
-			shadow.scalebias * shadow.shadowspace[2],
-			shadow.scalebias * shadow.shadowspace[3],
-		};
-		terrain_program.uniform_mat4_array("shadowspace", shadowspace);
-		shadow.bindtextures(GL_TEXTURE10);
 		terrain.display();
-
-		model.display(&base_program, glm::vec3(1000.f, 50.f, 1000.f), 1.f);
-		duck.display(&base_program, glm::vec3(970.f, 50.f, 970.f), 5.f);
-		//character.display(&base_program, glm::vec3(1100.f, 38.f, 980.f), 1.f);
-
-		activate_texture(GL_TEXTURE5, GL_TEXTURE_BUFFER, instance_tbo.texture);
-		activate_texture(GL_TEXTURE6, GL_TEXTURE_BUFFER, joint_tbo.texture);
-		skinned_program.uniform_int("JOINT_COUNT", joint_count); 
-		character.display(&skinned_program, translation, 1.f);
 
 		sky_program.bind();
 		skybox.display();
@@ -413,8 +252,6 @@ void run_terraingen(SDL_Window *window)
 		grass_program.uniform_float("amplitude", terrain.amplitude);
 		grass_program.uniform_float("time", start);
 		grass_program.uniform_vec3("camerapos", cam.eye);
-		grass_program.uniform_vec4("split", shadow.splitdepth);
-		grass_program.uniform_mat4_array("shadowspace", shadowspace);
 		grass.display();
 
 		// debug UI
@@ -436,14 +273,10 @@ void run_terraingen(SDL_Window *window)
 		SDL_GL_SwapWindow(window);
 		end = start;
 		frames++;
-		if (frames > 100) { 
+		if (frames % 100 == 0) { 
 			msperframe = (unsigned int)(delta*1000); 
-			frames = 0; 
 		}
 	}
-
-	delete [] joint_matrices;
-	delete [] animation_joints;
 }
 
 int main(int argc, char *argv[])

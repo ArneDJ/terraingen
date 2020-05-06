@@ -196,7 +196,7 @@ void main(void)
 	color = mix(color, rocks, smoothstep(0.4, 0.55, slope - (0.5*strata)));
 
 	float diffuse = max(0.0, dot(normal, lightdirection));
-	float shadow = shadow_coef();
+	float shadow = 1.0;
 
 	vec3 scatteredlight = ambient + lightcolor * diffuse * shadow;
 	color.rgb = min(color.rgb * scatteredlight, vec3(1.0));
