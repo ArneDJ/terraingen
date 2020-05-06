@@ -7,6 +7,11 @@ struct mesh {
 	bool indexed;
 };
 
+struct TBO {
+	GLuint texture;
+	GLuint buffer;
+};
+
 struct mesh gen_patch_grid(const size_t sidelength, const float offset);
 
 struct mesh gen_mapcube(void);
@@ -34,3 +39,5 @@ GLuint load_TGA_cubemap(const char *fpath[6]);
 void instance_static_VAO(GLuint VAO, std::vector<glm::mat4> *transforms);
 
 GLuint instance_dynamic_VAO(GLuint VAO, size_t instancecount);
+
+struct TBO create_TBO(GLsizeiptr size, GLenum internalformat);

@@ -379,4 +379,19 @@ GLuint instance_dynamic_VAO(GLuint VAO, size_t instancecount)
 	return buffer;
 }
 
+struct TBO create_TBO(GLsizeiptr size, GLenum internalformat)
+{
+	struct TBO tbo;
+
+	glGenTextures(1, &tbo.texture);
+	glBindTexture(GL_TEXTURE_BUFFER, tbo.texture);
+
+	glGenBuffers(1, &tbo.buffer);
+	glBindBuffer(GL_TEXTURE_BUFFER, tbo.buffer);
+	glBufferData(GL_TEXTURE_BUFFER, size, NULL, GL_DYNAMIC_DRAW);
+	glTexBuffer(GL_TEXTURE_BUFFER, internalformat, tbo.buffer);
+
+	return tbo;
+}
+
 

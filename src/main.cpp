@@ -208,34 +208,6 @@ static void init_imgui(SDL_Window *window, SDL_GLContext glcontext)
 	ImGui_ImplOpenGL3_Init("#version 430");
 }
 
-GLuint model_matrix_tbo;
-GLuint model_matrix_buffer;
-
-void instance_tbo(void)
-{
-	glGenTextures(1, &model_matrix_tbo);
-	glBindTexture(GL_TEXTURE_BUFFER, model_matrix_tbo);
-
-	glGenBuffers(1, &model_matrix_buffer);
-	glBindBuffer(GL_TEXTURE_BUFFER, model_matrix_buffer);
-	glBufferData(GL_TEXTURE_BUFFER, INSTANCE_COUNT * sizeof(glm::mat4), NULL, GL_DYNAMIC_DRAW);
-	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, model_matrix_buffer);
-}
-
-GLuint joint_matrix_tbo;
-GLuint joint_matrix_buffer;
-
-void instance_joint_tbo(uint16_t joint_count)
-{
-	glGenTextures(1, &joint_matrix_tbo);
-	glBindTexture(GL_TEXTURE_BUFFER, joint_matrix_tbo);
-
-	glGenBuffers(1, &joint_matrix_buffer);
-	glBindBuffer(GL_TEXTURE_BUFFER, joint_matrix_buffer);
-	glBufferData(GL_TEXTURE_BUFFER, joint_count * INSTANCE_COUNT * sizeof(glm::mat4), NULL, GL_DYNAMIC_DRAW);
-	glTexBuffer(GL_TEXTURE_BUFFER, GL_RGBA32F, joint_matrix_buffer);
-}
-
 void run_terraingen(SDL_Window *window)
 {
 	SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -280,20 +252,24 @@ void run_terraingen(SDL_Window *window)
 	gltf::Model duck = { "media/models/samples/khronos/Duck/glTF-Binary/Duck.glb" };
 	//gltf::Model character = { "media/models/samples/khronos/Fox/glTF-Binary/Fox.glb" };
 	//gltf::Model character = { "media/models/samples/khronos/BrainStem/glTF-Binary/BrainStem.glb" };
-	gltf::Model character = { "media/models/character.glb" };
+	gltf::Model character = { "media/models/trooper.glb" };
+	//gltf::Model character = { "media/models/samples/khronos/RiggedSimple/glTF-Binary/RiggedSimple.glb" };
 	static int item_current = 0;
 	const uint16_t joint_count = character.get_joint_count();
 	glm::mat4 *joint_matrices = new glm::mat4[joint_count * INSTANCE_COUNT];
 	character.instanced = true;
 	character.instance_count = INSTANCE_COUNT;
-	instance_tbo();
-	instance_joint_tbo(joint_count);
+	//instance_tbo();
+	struct TBO instance_tbo = create_TBO(INSTANCE_COUNT * sizeof(glm::mat4), GL_RGBA32F);
+	//instance_joint_tbo(joint_count);
+	struct TBO joint_tbo = create_TBO(joint_count * INSTANCE_COUNT * sizeof(glm::mat4), GL_RGBA32F);
 	
 	// pre calculate all the joint transforms for each animation per frame
-	float dt = 0.03f;
+	float dt = 0.05f;
 	float t = 0.f;
 	size_t nframes = 0;
-	while (t < character.animations[item_current].end) {
+	const float end_time = character.animations[item_current].end;
+	while (t < end_time) {
 		t += dt;
 		nframes++;
 	}
@@ -313,7 +289,7 @@ void run_terraingen(SDL_Window *window)
 	unsigned int instance_frame[INSTANCE_COUNT];
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	std::uniform_int_distribution<> dist(0, nframes-1);
+	std::uniform_int_distribution<> dist(0, nframes);
 	for (int i = 0; i < INSTANCE_COUNT; i++) {
 		instance_frame[i] = dist(gen);
 	}
@@ -329,7 +305,6 @@ void run_terraingen(SDL_Window *window)
 	float start = 0.f;
  	float end = 0.f;
 	static float timer = 0.f;
-	static int joint_index = 0;
 	unsigned long frames = 0;
 	unsigned int msperframe = 0;
 
@@ -340,19 +315,6 @@ void run_terraingen(SDL_Window *window)
 		const float delta = start - end;
 		cam.update(delta);
 
-		/*
-		// this takes too much CPU time, it's better to sample each animation per frame and store them in a buffer before the render loop
-		timer += delta;
-		if (timer > character.animations[item_current].end) { 
-			timer -= character.animations[item_current].end; 
-		}
-		character.update_animation(item_current, timer);
-		*/
-		joint_index++;
-		if (joint_index > nframes-1) {
-			joint_index = 0;
-		}
-
 		glm::mat4 *joint_matrix = character.get_joint_matrices();
 		int windex = 0;
 		for (int i = 0; i < INSTANCE_COUNT; i++) {
@@ -360,23 +322,21 @@ void run_terraingen(SDL_Window *window)
 			if (instance_frame[i] > nframes-1) {
 				instance_frame[i] = 0;
 			}
-			//glm::mat4 *matrix = character.get_joint_matrices();
 			for (int j = 0; j < joint_count; j++) {
-				//joint_matrices[windex++] = matrix[j];
 				joint_matrices[windex++] = animation_joints[instance_frame[i]*joint_count+j];
 			}
 		}
-		glBindBuffer(GL_TEXTURE_BUFFER, joint_matrix_buffer);
+		glBindBuffer(GL_TEXTURE_BUFFER, joint_tbo.buffer);
 		glBufferData(GL_TEXTURE_BUFFER, joint_count*INSTANCE_COUNT*sizeof(glm::mat4), joint_matrices, GL_DYNAMIC_DRAW);
 
 		// Set model matrices for each instance
 		glm::mat4 matrices[INSTANCE_COUNT];
 		int index = 0;
 		for (int i = 0; i < 100; i++) {
-				float a = 25.f * float(i) / 4.f;
+				float a = 10.f * float(i) / 4.f;
 				float b = 5.f * float(i);
 				for (int j = 0; j < 100; j++) {
-					float c = 25.f * float(j) / 6.f;
+					float c = 10.f * float(j) / 6.f;
 					glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(1000.f+a, 128.f+2.f*sin(start+b), 1000.f+c));
 					glm::mat4 R = glm::rotate(1.57f, glm::vec3(1.0, 0.0, 0.0));
 					glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.05f));
@@ -384,7 +344,7 @@ void run_terraingen(SDL_Window *window)
 			}
 		}
 		// Bind the weight VBO and change its data
-		glBindBuffer(GL_TEXTURE_BUFFER, model_matrix_buffer);
+		glBindBuffer(GL_TEXTURE_BUFFER, instance_tbo.buffer);
 		glBufferData(GL_TEXTURE_BUFFER, INSTANCE_COUNT*sizeof(glm::mat4), matrices, GL_DYNAMIC_DRAW);
 
 		if (frames % 4 == 0) {
@@ -436,9 +396,9 @@ void run_terraingen(SDL_Window *window)
 		duck.display(&base_program, glm::vec3(970.f, 50.f, 970.f), 5.f);
 		//character.display(&base_program, glm::vec3(1100.f, 38.f, 980.f), 1.f);
 
-		activate_texture(GL_TEXTURE5, GL_TEXTURE_BUFFER, model_matrix_tbo);
-		activate_texture(GL_TEXTURE6, GL_TEXTURE_BUFFER, joint_matrix_tbo);
-		skinned_program.uniform_int("joint_count", joint_count); 
+		activate_texture(GL_TEXTURE5, GL_TEXTURE_BUFFER, instance_tbo.texture);
+		activate_texture(GL_TEXTURE6, GL_TEXTURE_BUFFER, joint_tbo.texture);
+		skinned_program.uniform_int("JOINT_COUNT", joint_count); 
 		character.display(&skinned_program, translation, 1.f);
 
 		sky_program.bind();
