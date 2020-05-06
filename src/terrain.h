@@ -17,9 +17,6 @@ public:
 public:
 	Terrain(size_t sidelen, float patchoffst, float amp);
 	~Terrain(void);
-	void genheightmap(size_t imageres, float freq);
-	void gennormalmap(void);
-	void genocclusmap(void);
 	void display(void) const;
 	float sampleheight(float x, float z) const;
 	float sampleslope(float x, float z) const;
@@ -29,6 +26,10 @@ private:
 	struct rawimage occlusimage;
 	struct mesh termesh;
 	struct surface tersurface;
+private:
+	void genheightmap(size_t imageres, float freq);
+	void gennormalmap(void);
+	void genocclusmap(void);
 };
 
 class Grass {

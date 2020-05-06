@@ -68,16 +68,16 @@ struct mesh gen_quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d)
 {
 	struct mesh quads = {
 		.VAO = 0, .VBO = 0, .EBO = 0,
-		.mode = GL_TRIANGLES,
-		.ecount = 6,
-		.indexed = true
+		.mode = GL_TRIANGLE_STRIP,
+		.ecount = 0,
+		.indexed = false
 	};
 
 	const GLfloat positions[] = {
-		d.x, d.y, d.z,
-		c.x, c.y, c.z,
 		a.x, a.y, a.z,
+		c.x, c.y, c.z,
 		b.x, b.y, b.z,
+		d.x, d.y, d.z,
 	};
 
 	const GLfloat texcoords[] = {
@@ -87,17 +87,8 @@ struct mesh gen_quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d)
 		1.0, 0.0,
 	};
 
-	const GLushort indices[] = {
-		0, 1, 2,
-		0, 2, 3,
-	};
-
 	glGenVertexArrays(1, &quads.VAO);
 	glBindVertexArray(quads.VAO);
-
-	glGenBuffers(1, &quads.EBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quads.EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
 
 	glGenBuffers(1, &quads.VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, quads.VBO);

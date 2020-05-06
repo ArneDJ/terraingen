@@ -64,7 +64,7 @@ static struct mesh create_slices(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec
 static GLuint create_cloud_texture(size_t texsize, float frequency, float cloud_distance)
 {
 	unsigned char *image = new unsigned char[texsize*texsize*texsize];
-	perlin_3D_image(image, texsize, frequency, cloud_distance);
+	billow_3D_image(image, texsize, frequency, cloud_distance);
 
 	GLuint texture;
 
@@ -133,6 +133,10 @@ Terrain::Terrain(size_t sidelen, float patchoffst, float amp)
 	amplitude = amp;
 	termesh =  gen_patch_grid(sidelen, patchoffst);
 	mapratio = 0.f;
+
+	genheightmap(1024, 1.f);
+	gennormalmap();
+	genocclusmap();
 
 	detailmap = load_DDS_texture("media/textures/terrain/detailmap.dds");
 

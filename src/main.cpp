@@ -182,17 +182,8 @@ void run_terraingen(SDL_Window *window)
 	Skybox skybox = init_skybox();
 
 	Terrain terrain = { 64, 32.f, 256.f };
-	terrain.genheightmap(1024, 1.f);
-	terrain.gennormalmap();
-	terrain.genocclusmap();
 
-	Clouds clouds = {
-		terrain.sidelength,
-		terrain.amplitude,
-		128,
-		0.03f,
-		0.5f,
-	};
+	Clouds clouds = { terrain.sidelength, terrain.amplitude, 128, 0.03f, 0.5f, };
 
 	Grass grass = {
 		&terrain,
@@ -214,7 +205,6 @@ void run_terraingen(SDL_Window *window)
 
 	float start = 0.f;
  	float end = 0.f;
-	static float timer = 0.f;
 	unsigned long frames = 0;
 	unsigned int msperframe = 0;
 

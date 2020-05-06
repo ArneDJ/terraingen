@@ -6,8 +6,12 @@
 #include "external/heman/heman.h"
 #include "imp.h"
 
-#define RED_CHANNEL 1
-#define RGB_CHANNEL 3
+enum {
+	RED_CHANNEL = 1,
+	RG_CHANNEL = 2,
+	RGB_CHANNEL = 3,
+	RGBA_CHANNEL = 4
+};
 
 static inline float sample_height(int x, int y, const struct rawimage *image)
 {
@@ -35,12 +39,10 @@ static glm::vec3 filter_normal(int x, int y, const struct rawimage *image)
 
 	// sobel filter
 	const float dX = (TR + 2.f * R + BR) - (TL + 2.f * L + BL);
-	const float dY = (BL + 2.f * B + BR) - (TL + 2.f * T + TR);
-	const float dZ = 1.f / strength;
+	const float dZ = (BL + 2.f * B + BR) - (TL + 2.f * T + TR);
+	const float dY = 1.f / strength;
 
-	// in OpenGL the Y axis is up so switch it with the Z axis
-	// the X axis has to be inverted too
-	glm::vec3 normal(-dX, dZ, dY);
+	glm::vec3 normal(-dX, dY, dZ);
 	normal = glm::normalize(normal);
 	// convert to positive values to store in a texture
 	normal.x = (normal.x + 1.f) / 2.f;
@@ -52,6 +54,10 @@ static glm::vec3 filter_normal(int x, int y, const struct rawimage *image)
 
 float sample_image(int x, int y, const struct rawimage *image, unsigned int channel)
 {
+	if (image->data == nullptr) {
+		std::cerr << "error: no image data\n";
+		return 0.f;
+	}
 	if (channel > image->nchannels) {
 		std::cerr << "error: invalid channel to sample\n";
 		return 0.f;
@@ -107,7 +113,7 @@ struct rawimage gen_occlusmap(const struct rawimage *heightmap)
 	return occlusmap;
 }
 
-void perlin_3D_image(unsigned char *image, size_t sidelength, float frequency, float cloud_distance)
+void billow_3D_image(unsigned char *image, size_t sidelength, float frequency, float cloud_distance)
 {
 	FastNoise billow;
 	billow.SetNoiseType(FastNoise::SimplexFractal);
@@ -208,46 +214,3 @@ void terrain_image(unsigned char *image, size_t sidelength, long seed, float fre
 		}
 	}
 }
-/* 
- * preset: Mountains
- * noise type: Cellular
- * cellular distance function: natural
- * cellular return type: distance 2
- * gradient perturb amp: 20
- * frequency: 0.001
- *
- * noise type: Simplex Fractal
- * fractal type: rigid multi
- * frequency: 0.002
- * octaves: 6
- * lacunarity: 2
- * gradient perturb amp: 50
- * frequency: 0.002
- */
-/*
-	FastNoise cellnoise;
-	cellnoise.SetSeed(seed);
-	cellnoise.SetNoiseType(FastNoise::Cellular);
-	cellnoise.SetCellularDistanceFunction(FastNoise::Natural);
-	cellnoise.SetFrequency(freq);
-	cellnoise.SetCellularReturnType(FastNoise::Distance2Add);
-	cellnoise.SetGradientPerturbAmp(20.f);
-
-	FastNoise fractnoise;
-	fractnoise.SetSeed(seed);
-	fractnoise.SetNoiseType(FastNoise::SimplexFractal);
-	fractnoise.SetFractalType(FastNoise::RigidMulti);
-	fractnoise.SetFrequency(0.01f);
-	fractnoise.SetFractalOctaves(6);
-	fractnoise.SetFractalLacunarity(2.0f);
-	fractnoise.SetGradientPerturbAmp(20.f);
-
-	FastNoise mask;
-	mask.SetSeed(seed);
-	mask.SetNoiseType(FastNoise::SimplexFractal);
-	mask.SetFractalType(FastNoise::Billow);
-	mask.SetFrequency(0.0005f);
-	mask.SetFractalOctaves(2);
-	mask.SetFractalLacunarity(2.0f);
-	mask.SetGradientPerturbAmp(30.f);
-*/
