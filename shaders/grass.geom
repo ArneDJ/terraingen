@@ -1,8 +1,9 @@
 #version 430 core
+#define M_PI 3.14159265358
 
 layout (points) in;
 layout (triangle_strip) out;
-layout (max_vertices = 60) out;
+layout (max_vertices = 49) out;
 
 layout(binding = 0) uniform sampler2D heightmap;
 layout(binding = 4) uniform sampler2D windmap;
@@ -19,16 +20,53 @@ out GEOM {
 	float zclipspace;
 } geom;
 
-float rand(vec2 co){
-    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
-}
-
-mat4 rotationY(in float angle) 
+float random(vec2 co)
 {
-	return mat4(cos(angle), 0, sin(angle), 0, 0, 1.0, 0, 0, -sin(angle), 0, cos(angle), 0, 0, 0, 0, 1);
+	return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
 }
 
-vec2 pos_to_texcoord(vec3 position)
+float noise(in vec2 st) 
+{
+	vec2 i = floor(st);
+	vec2 f = fract(st);
+
+	// Four corners in 2D of a tile
+	float a = random(i);
+	float b = random(i + vec2(1.0, 0.0));
+	float c = random(i + vec2(0.0, 1.0));
+	float d = random(i + vec2(1.0, 1.0));
+
+	vec2 u = f * f * (3.0 - 2.0 * f);
+
+	return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+
+mat3 rotationY(in float angle) 
+{
+	return mat3(
+	cos(angle), 0, sin(angle),
+	0, 1.0, 0,
+	-sin(angle), 0, cos(angle));
+}
+
+mat3 AngleAxis3x3(float angle, vec3 axis)
+{
+	float s = sin(angle);
+	float c = cos(angle);
+
+	float t = 1 - c;
+	float x = axis.x;
+	float y = axis.y;
+	float z = axis.z;
+
+	return mat3(
+	t * x * x + c,      t * x * y - s * z,  t * x * z + s * y,
+	t * x * y + s * z,  t * y * y + c,      t * y * z - s * x,
+	t * x * z - s * y,  t * y * z + s * x,  t * z * z + c
+	);
+}
+
+vec2 pos_to_uv(vec2 position)
 {
 	float x = 0.5 * (position.x + 1.0);
 	float y = 0.5 * (position.y + 1.0);
@@ -36,103 +74,74 @@ vec2 pos_to_texcoord(vec3 position)
 	return vec2(x, 1.0 - y);
 }
 
-void make_triangle(vec3 a, vec3 b, vec3 c, vec3 position)
+void make_vertex(vec3 position, vec2 uv)
 {
-	float stretch = 1.0;
-
-	position.y = amplitude * texture(heightmap, mapscale*position.xz).r;
-	mat4 rotation = rotationY(rand(position.xz)*2.0);
-	a = vec3(rotation * vec4(a, 1.0));
-	b = vec3(rotation * vec4(b, 1.0));
-	c = vec3(rotation * vec4(c, 1.0));
-
-	mat4 mvpMatrix = VIEW_PROJECT;
-
-	gl_Position = mvpMatrix * vec4((a*stretch)+position, 1.0);
-	geom.texcoord = pos_to_texcoord(a);
-	geom.position = a+position;
+	gl_Position = VIEW_PROJECT * vec4(position, 1.0);
+	geom.texcoord = pos_to_uv(uv);
+	geom.position = position;
 	geom.zclipspace = gl_Position.z;
 	EmitVertex();
-	gl_Position = mvpMatrix * vec4((b*stretch)+position, 1.0);
-	geom.texcoord = pos_to_texcoord(b);
-	geom.position = b+position;
-	geom.zclipspace = gl_Position.z;
-	EmitVertex();
-	gl_Position = mvpMatrix * vec4((c*stretch)+position, 1.0);
-	geom.texcoord = pos_to_texcoord(c);
-	geom.position = c+position;
-	geom.zclipspace = gl_Position.z;
-	EmitVertex();
+}
+
+mat3 wind_rotation(vec3 origin)
+{
+	const float frequency = 0.02;
+	float tiling = 0.005;
+	vec2 uv = tiling*origin.xz + frequency * time;
+	vec2 windsample = (texture(windmap, uv).rg * 2.0 - 1.0) * 2.0;
+	vec3 wind = normalize(vec3(windsample.x, windsample.y, 0.0));
+	mat3 R = AngleAxis3x3(windsample.x, wind) * AngleAxis3x3(windsample.y, wind);
+
+	return R;
+}
+const vec3 v0 = vec3(0.0, 1.0, 0.0);
+const vec3 v1 = vec3(-0.075, 0.25, 0.0);
+const vec3 v2 = vec3(0.075, 0.25, 0.0);
+const vec3 v3 = vec3(-0.075, 0.1, 0.0);
+const vec3 v4 = vec3(0.1, 0.1, 0.0);
+const vec3 v5 = vec3(-0.1, -1.0, 0.0);
+const vec3 v6 = vec3(0.1, -1.0, 0.0);
+
+void make_grass_blade(vec3 origin) 
+{
+	origin.y = amplitude * texture(heightmap, mapscale*origin.xz).r;
+	mat3 R = rotationY(noise(origin.xz)*2.0*M_PI);
+	float len = noise(origin.xz);
+	float stretch = 4.0;
+
+	mat3 wind = wind_rotation(origin);
+
+	vec3 a = wind * R * (stretch * v0);
+	vec3 b = wind * R * (stretch * v1);
+	vec3 c = wind * R * (stretch * v2);
+	vec3 d = wind * R * (stretch * v3);
+	vec3 e = R * (stretch * v4);
+	vec3 f = R * (stretch * v5);
+	vec3 g = R * (stretch * v6);
+
+	make_vertex(origin+a, v0.xy);
+	make_vertex(origin+b, v1.xy);
+	make_vertex(origin+c, v2.xy);
+	make_vertex(origin+d, v3.xy);
+	make_vertex(origin+e, v4.xy);
+	make_vertex(origin+f, v5.xy);
+	make_vertex(origin+g, v6.xy);
+
 	EndPrimitive();
 }
-
-mat3 AngleAxis3x3(float angle, vec3 axis)
-{
-    float s = sin(angle);
-    float c = cos(angle);
-
-    float t = 1 - c;
-    float x = axis.x;
-    float y = axis.y;
-    float z = axis.z;
-
-    return mat3(
-        t * x * x + c,      t * x * y - s * z,  t * x * z + s * y,
-        t * x * y + s * z,  t * y * y + c,      t * y * z - s * x,
-        t * x * z - s * y,  t * y * z + s * x,  t * z * z + c
-    );
-}
-
-const float frequency = 0.05;
 
 void main(void)
 {
 	vec3 position = gl_in[0].gl_Position.xyz;
 	float dist = distance(camerapos, position);
-	//float blending = 1.0 / (0.01*dist);
 
 	if (dist < 100.0) {
-		float tiling = 0.005;
-		vec2 uv = tiling*position.xz + frequency * time;
-		vec2 windsample = (texture(windmap, uv).rg * 2.0 - 1.0) * 2.0;
-		vec3 wind = normalize(vec3(windsample.x, windsample.y, 0.0));
-		mat3 rotation = AngleAxis3x3(windsample.x, wind) * AngleAxis3x3(windsample.y, wind);
-
-		// individual grass blade
-		vec3 a = vec3(0.0, -1.0, 0.0);
-		vec3 b = vec3(0.19, -1.0, 0.0);
-		vec3 c = vec3(0.11, 0.41, 0.0);
-		vec3 d = rotation * vec3(0.28, 0.41, 0.0);
-		vec3 e = rotation * vec3(0.28, 0.78, 0.0);
-		vec3 f = rotation * vec3(0.42, 0.78, 0.0);
-		vec3 g = rotation * vec3(0.58, 1.0, 0.0);
-
-		make_triangle(a, b, c, position);
-		make_triangle(b, c, d, position);
-		make_triangle(c, d, e, position);
-		make_triangle(d, e, f, position);
-		make_triangle(e, f, g, position);
-
-		vec3 offset1 = vec3(1.0, 0.0, 0.0);
-		vec3 offset2 = vec3(0.0, 0.0, 1.0);
-		vec3 offset3 = vec3(0.0, 0.0, -1.0);
-
-		make_triangle(a, b, c, position+offset1);
-		make_triangle(b, c, d, position+offset1);
-		make_triangle(c, d, e, position+offset1);
-		make_triangle(d, e, f, position+offset1);
-		make_triangle(e, f, g, position+offset1);
-
-		make_triangle(a, b, c, position+offset2);
-		make_triangle(b, c, d, position+offset2);
-		make_triangle(c, d, e, position+offset2);
-		make_triangle(d, e, f, position+offset2);
-		make_triangle(e, f, g, position+offset2);
-
-		make_triangle(a, b, c, position+offset3);
-		make_triangle(b, c, d, position+offset3);
-		make_triangle(c, d, e, position+offset3);
-		make_triangle(d, e, f, position+offset3);
-		make_triangle(e, f, g, position+offset3);
+		make_grass_blade(position);
+		make_grass_blade(position+vec3(0.5, 0.0, 0.0));
+		make_grass_blade(position+vec3(-0.5, 0.0, 0.0));
+		make_grass_blade(position+vec3(0.5, 0.0, 0.5));
+		make_grass_blade(position+vec3(-0.5, 0.0, 0.5));
+		make_grass_blade(position+vec3(0.5, 0.0, -0.5));
+		make_grass_blade(position+vec3(-0.5, 0.0, -0.5));
 	}
 }

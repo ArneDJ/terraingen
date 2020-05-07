@@ -3,7 +3,6 @@
 layout(binding = 1) uniform sampler2D normalmap;
 layout(binding = 2) uniform sampler2D occlusmap;
 layout(binding = 3) uniform sampler2D detailmap;
-layout(binding = 5) uniform sampler2D colormap;
 
 layout(binding = 10) uniform sampler2DArrayShadow shadowmap;
 
@@ -88,6 +87,8 @@ void main(void)
 	const vec3 viewspace = vec3(distance(fragment.position.x, camerapos.x), distance(fragment.position.y, camerapos.y), distance(fragment.position.z, camerapos.z));
 
 	color = vec4(0.34, 0.5, 0.09, 1.0);
+	vec3 color_bottom = 0.5 * color.rgb;
+	color.rgb = mix(color.rgb, color_bottom, fragment.texcoord.y);
 
 /*
 	float dist = distance(camerapos, fragment.position);
@@ -101,7 +102,7 @@ void main(void)
 
 	vec3 normal = texture(normalmap, mapscale * fragment.position.xz).rgb;
 	normal = (normal * 2.0) - 1.0;
-	vec3 detail = texture(detailmap, fragment.texcoord*0.01).rgb;
+	vec3 detail = texture(detailmap, fragment.position.xz*0.01).rgb;
 	detail  = (detail * 2.0) - 1.0;
 	detail = vec3(detail.x, detail.z, detail.y);
 

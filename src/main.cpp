@@ -31,7 +31,7 @@
 #define NEAR_CLIP 0.1f
 #define FAR_CLIP 1600.f
 
-#define GRASS_DENSITY 800000
+#define GRASS_DENSITY 1000000
 #define FOG_DENSITY 0.015f
 
 Shader grass_shader(void)

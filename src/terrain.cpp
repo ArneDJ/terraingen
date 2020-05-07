@@ -241,7 +241,9 @@ void Grass::display(void) const
 	activate_texture(GL_TEXTURE4, GL_TEXTURE_2D, windmap);
 	glDisable(GL_CULL_FACE);
 	glBindVertexArray(roots.VAO);
+//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glDrawArrays(GL_POINTS, 0, roots.ecount);
+//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glEnable(GL_CULL_FACE);
 }
 
