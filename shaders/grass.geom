@@ -6,6 +6,7 @@ layout (triangle_strip) out;
 layout (max_vertices = 49) out;
 
 layout(binding = 0) uniform sampler2D heightmap;
+layout(binding = 1) uniform sampler2D normalmap;
 layout(binding = 4) uniform sampler2D windmap;
 
 uniform mat4 VIEW_PROJECT;
@@ -19,6 +20,15 @@ out GEOM {
 	vec2 texcoord;
 	float zclipspace;
 } geom;
+
+// individual grass blade
+const vec3 v0 = vec3(0.0, 1.0, 0.0);
+const vec3 v1 = vec3(-0.075, 0.25, 0.0);
+const vec3 v2 = vec3(0.075, 0.25, 0.0);
+const vec3 v3 = vec3(-0.075, 0.1, 0.0);
+const vec3 v4 = vec3(0.1, 0.1, 0.0);
+const vec3 v5 = vec3(-0.1, -1.0, 0.0);
+const vec3 v6 = vec3(0.1, -1.0, 0.0);
 
 float random(vec2 co)
 {
@@ -86,7 +96,7 @@ void make_vertex(vec3 position, vec2 uv)
 mat3 wind_rotation(vec3 origin)
 {
 	const float frequency = 0.02;
-	float tiling = 0.005;
+	float tiling = 0.003;
 	vec2 uv = tiling*origin.xz + frequency * time;
 	vec2 windsample = (texture(windmap, uv).rg * 2.0 - 1.0) * 2.0;
 	vec3 wind = normalize(vec3(windsample.x, windsample.y, 0.0));
@@ -94,30 +104,24 @@ mat3 wind_rotation(vec3 origin)
 
 	return R;
 }
-const vec3 v0 = vec3(0.0, 1.0, 0.0);
-const vec3 v1 = vec3(-0.075, 0.25, 0.0);
-const vec3 v2 = vec3(0.075, 0.25, 0.0);
-const vec3 v3 = vec3(-0.075, 0.1, 0.0);
-const vec3 v4 = vec3(0.1, 0.1, 0.0);
-const vec3 v5 = vec3(-0.1, -1.0, 0.0);
-const vec3 v6 = vec3(0.1, -1.0, 0.0);
-
 void make_grass_blade(vec3 origin) 
 {
-	origin.y = amplitude * texture(heightmap, mapscale*origin.xz).r;
-	mat3 R = rotationY(noise(origin.xz)*2.0*M_PI);
 	float len = noise(origin.xz);
 	float stretch = 4.0;
 
+	mat3 R = rotationY(len*2.0*M_PI);
 	mat3 wind = wind_rotation(origin);
+	vec3 normal = texture(normalmap, mapscale*origin.xz).rgb;
+	mat3 spin = AngleAxis3x3(len, -normal);
+	R = spin * R;
 
-	vec3 a = wind * R * (stretch * v0);
-	vec3 b = wind * R * (stretch * v1);
-	vec3 c = wind * R * (stretch * v2);
-	vec3 d = wind * R * (stretch * v3);
-	vec3 e = R * (stretch * v4);
-	vec3 f = R * (stretch * v5);
-	vec3 g = R * (stretch * v6);
+	vec3 a =  wind * R * (stretch * v0);
+	vec3 b =  wind * R * (stretch * v1);
+	vec3 c =  wind * R * (stretch * v2);
+	vec3 d =  wind * R * (stretch * v3);
+	vec3 e =  R * (stretch * v4);
+	vec3 f =  R * (stretch * v5);
+	vec3 g =  R * (stretch * v6);
 
 	make_vertex(origin+a, v0.xy);
 	make_vertex(origin+b, v1.xy);
@@ -133,6 +137,7 @@ void make_grass_blade(vec3 origin)
 void main(void)
 {
 	vec3 position = gl_in[0].gl_Position.xyz;
+	position.y = amplitude * texture(heightmap, mapscale*position.xz).r;
 	float dist = distance(camerapos, position);
 
 	if (dist < 100.0) {
